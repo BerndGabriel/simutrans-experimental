@@ -962,6 +962,16 @@ convoi_t::route_infos_t& convoi_t::get_route_infos()
 		}
 		route_infos.set_holding_pattern_indexes(current_route_index, touchdown_index);
 
+#ifdef DEBUG_CORNERING
+		for (int i = 0; i < route_count; i++)
+		{
+			const koord3d &ko = route.position_bei(i);
+			const convoi_t::route_info_t &ri = route_infos.get_element(i);
+			dbg->message("convoi_t::get_route_infos", 
+				"% 4u) x =% 5u, y =% 5u, stp =% 6u, dir =%3d, lim =% 6u", 
+				i, ko.x, ko.y, ri.steps_from_start, ri.direction, speed_to_kmh(ri.speed_limit));
+		}
+#endif
 	}
 	return route_infos; 
 }
