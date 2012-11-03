@@ -3645,17 +3645,17 @@ image_id wkz_station_t::get_icon( spieler_t * ) const
 {
 	sint8 dummy;
 	const haus_besch_t *besch=get_besch(dummy);
-	if(  grund_t::underground_mode==grund_t::ugm_all  )
+	if(grund_t::underground_mode == grund_t::ugm_all)
 	{
 		// in underground mode, buildings will be done invisible above ground => disallow such confusion
-		if(  besch->get_allow_underground() == 0 ||  besch->get_extra()==air_wt) 
+		if(besch->get_allow_underground() == 0 ||  besch->get_extra()==air_wt) 
 		{
 			return IMG_LEER;
 		}
 	}
-	else if(besch->get_allow_underground() == 1)
+	else if(besch->get_allow_underground() == 1 && grund_t::underground_mode == grund_t::ugm_none)
 	{
-		// Not allowed underground.
+		// Allow both underground and above ground buildings in sliced underground mode.
 		return IMG_LEER;
 	}
 	return icon;
@@ -3801,7 +3801,7 @@ const char *wkz_station_t::work( karte_t *welt, spieler_t *sp, koord3d pos )
 			}
 			else
 			{
-				cost = besch->get_station_price();
+				cost = -besch->get_station_price();
 			}
 			if(!sp->can_afford(cost))
 			{
@@ -3827,7 +3827,7 @@ const char *wkz_station_t::work( karte_t *welt, spieler_t *sp, koord3d pos )
 					}
 					else
 					{
-						cost = besch->get_station_price();
+						cost = -besch->get_station_price();
 					}
 					if(!sp->can_afford(-cost))
 					{
@@ -3846,7 +3846,7 @@ const char *wkz_station_t::work( karte_t *welt, spieler_t *sp, koord3d pos )
 					}
 					else
 					{
-						cost = besch->get_station_price();
+						cost = -besch->get_station_price();
 					}
 					if(!sp->can_afford(-cost))
 					{
@@ -3861,7 +3861,7 @@ const char *wkz_station_t::work( karte_t *welt, spieler_t *sp, koord3d pos )
 					}
 					else
 					{
-						cost = besch->get_station_price();
+						cost = -besch->get_station_price();
 					}
 					if(!sp->can_afford(-cost))
 					{
@@ -3876,7 +3876,7 @@ const char *wkz_station_t::work( karte_t *welt, spieler_t *sp, koord3d pos )
 					}
 					else
 					{
-						cost = besch->get_station_price();
+						cost = -besch->get_station_price();
 					}
 					if(!sp->can_afford(-cost))
 					{
