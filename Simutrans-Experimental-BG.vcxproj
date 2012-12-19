@@ -94,8 +94,8 @@
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug (SDL)|Win32'">..\OpenTTD essentials\win32\library;..\bzip2-1.0.5;$(LibraryPath)</LibraryPath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug Optimized|Win32'">..\OpenTTD essentials\win32\include;..\bzip2-1.0.5;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug Optimized|Win32'">..\OpenTTD essentials\win32\library;..\bzip2-1.0.5;$(LibraryPath)</LibraryPath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\OpenTTD essentials\win32\include;..\bzip2-1.0.5;$(IncludePath)</IncludePath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\OpenTTD essentials\win32\library;..\bzip2-1.0.5;$(LibraryPath)</LibraryPath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\OpenTTD essentials\win32\include;..\bzip;$(IncludePath)</IncludePath>
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\OpenTTD essentials\win32\library;..\bzip;$(LibraryPath)</LibraryPath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release (SDL)|Win32'">..\OpenTTD essentials\win32\include;..\bzip2-1.0.5;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release (SDL)|Win32'">..\OpenTTD essentials\win32\library;..\bzip2-1.0.5;$(LibraryPath)</LibraryPath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\OpenTTD essentials\win32\include;..\bzip2-1.0.5;$(IncludePath)</IncludePath>
