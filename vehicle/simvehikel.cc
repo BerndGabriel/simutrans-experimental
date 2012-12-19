@@ -817,9 +817,13 @@ vehikel_t::unload_freight(halthandle_t halt)
 						// Halt overcrowded - discard goods/passengers, and collect no revenue.
 						// Experimetal 7.2 - also calculate a refund.
 
-						if(tmp.get_origin().is_bound())
+						if(tmp.get_origin().is_bound() && get_besitzer()->get_player_cash_int() > 0)
 						{
 							// Cannot refund unless we know the origin.
+							// Also, ought not refund unless the player is solvent. 
+							// Players ought not be put out of business by refunds, as this makes gameplay too unpredictable, 
+							// especially in online games, where joining one player's network to another might lead to a large
+							// influx of passengers which one of the networks cannot cope with.
 							const uint16 distance = shortest_distance(halt->get_basis_pos(), tmp.get_origin()->get_basis_pos());
 
 							// Refund is approximation: 2x distance at standard rate with no adjustments. 
@@ -3580,6 +3584,7 @@ bool waggon_t::is_weg_frei_signal( uint16 next_block, int &restart_speed )
 {
 	// called, when there is a signal; will call other signal routines if needed
 	grund_t *gr_next_block = welt->lookup(cnv->get_route()->position_bei(next_block));
+
 	signal_t *sig = gr_next_block->find<signal_t>();
 	if(  sig==NULL  ) {
 		dbg->error( "waggon_t::is_weg_frei_signal()", "called at %s without a signal!", cnv->get_route()->position_bei(next_block).get_str() );
@@ -3680,7 +3685,7 @@ bool waggon_t::ist_weg_frei(int & restart_speed,bool)
 	if(next_block > last_index) 
 	{
 		const sint32 route_steps = route_infos.get_element(last_index).steps_from_start - route_index <= route_infos.get_count() - 1 ? route_infos.get_element(route_index).steps_from_start : 0;
-		bool weg_frei = route_steps >= brake_steps || brake_steps == 0; // If brake_steps == 0 and weg_frei == false, weird excess block reservations can occur that cause blockages.
+		bool weg_frei = route_steps >= brake_steps || brake_steps == 0 || route_steps == 0; // If brake_steps == 0 and weg_frei == false, weird excess block reservations can occur that cause blockages.
 		if (!weg_frei)
 		{ 	
 			// we need a longer route to decide, whether we will have to start braking:
@@ -3699,13 +3704,13 @@ bool waggon_t::ist_weg_frei(int & restart_speed,bool)
 				ribi_t::ribi new_dir = calc_richtung(target_rt.position_bei(0).get_2d(), target_rt.position_bei(1).get_2d());
 				if (old_dir & ribi_t::rueckwaerts(new_dir))
 				{
-					// convoy must revert and thus stop at the waypoint. No need to extend the route now.
+					// convoy must reverse and thus stop at the waypoint. No need to extend the route now.
 					// Extending the route now would confuse tile reservation.
 					fpl->eintrag[fpl->get_aktuell()].reverse = true;
 				}
 				else
 				{
-					// convoy can pass waypoint without reverting/stopping. Append route to next stop/waypoint
+					// convoy can pass waypoint without reversing/stopping. Append route to next stop/waypoint
 					fpl->advance();
 					cnv->update_route(last_index, target_rt);
 					weg_frei = block_reserver( &route, last_index, next_signal, next_crossing, 0, true, false );
@@ -3728,7 +3733,7 @@ bool waggon_t::ist_weg_frei(int & restart_speed,bool)
 		return ok;
 	}
 
-	const sint32 route_steps = brake_steps > 0 ? cnv->get_route_infos().get_element((next_block > 0 ? next_block - 1 : 0)).steps_from_start - cnv->get_route_infos().get_element(route_index).steps_from_start : -1;
+	const sint32 route_steps = brake_steps > 0 && route_index <= route_infos.get_count() - 1 ? cnv->get_route_infos().get_element((next_block > 0 ? next_block - 1 : 0)).steps_from_start - cnv->get_route_infos().get_element(route_index).steps_from_start : -1;
 	if (route_steps <= brake_steps) 
 	{ 	
 		koord3d block_pos=cnv->get_route()->position_bei(next_block);

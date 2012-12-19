@@ -144,12 +144,6 @@ ki_kontroll_t::ki_kontroll_t(karte_t *wl) :
 			access_in[i].set_visible(false);
 			access_out[i].set_visible(false);
 		}
-		if(i == 1)
-		{
-			// Public players have no convoys - 
-			// hence, no need for an access out button.
-			access_out[i].set_visible(false);
-		}
 
 		// income label
 		account_str[i][0] = 0;
@@ -269,7 +263,7 @@ bool ki_kontroll_t::action_triggered( gui_action_creator_t *komp,value_t p )
 			sprintf(param,"g%hi,%hi,%hi", welt->get_active_player_nr(), i, access_out[i].pressed);
 			werkzeug_t *w = create_tool( WKZ_ACCESS_TOOL | SIMPLE_TOOL );
 			w->set_default_param(param);
-			sp->get_welt()->set_werkzeug( w, sp );
+			welt->set_werkzeug( w, welt->get_active_player() );
 			// since init always returns false, it is save to delete immediately
 			delete w;
 
@@ -433,6 +427,19 @@ void ki_kontroll_t::zeichnen(koord pos, koord gr)
 				ai_income[i]->set_color( account>=0.0 ? MONEY_PLUS : MONEY_MINUS );
 				ai_income[i]->set_pos( koord(315, 8+(i+1)*2*LINESPACE ) );
 			}
+
+			access_out[i].pressed = welt->get_active_player()->allows_access_to(i);
+			if(access_out[i].pressed && sp)
+			{
+				tooltip_out[i].clear();
+				tooltip_out[i].printf("Withdraw %s's access your ways and stops", sp->get_name());
+			}
+			else if(sp)
+			{
+				tooltip_out[i].clear();
+				tooltip_out[i].printf("Allow %s to access your ways and stops", sp->get_name());
+			}
+
 		}
 		else {
 			account_str[i][0] = 0;

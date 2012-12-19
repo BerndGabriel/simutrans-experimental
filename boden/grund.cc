@@ -1458,9 +1458,10 @@ sint64 grund_t::neuen_weg_bauen(weg_t *weg, ribi_t::ribi ribi, spieler_t *sp)
 		}
 
 		// just add the maintenance
-		if(sp && !ist_wasser()) {
+		if(sp && !ist_wasser() && (!welt->get_city(weg->get_pos().get_2d()) || !welt->get_settings().get_towns_adopt_player_roads() || sp->get_player_nr() == 1))
+		{			
 			//sp->add_maintenance( weg->get_besch()->get_wartung());
-			weg->set_besitzer( sp );
+			weg->set_besitzer(sp);
 			// Must call this here to ensure that the diagonal cost is
 			// set as appropriate.
 			// @author: jamespetts, Februrary 2010
@@ -1505,7 +1506,7 @@ DBG_MESSAGE("grund_t::weg_entfernen()","weg %p",weg);
 			flags &= ~has_way2;
 
 			// reset speed limit/crossing info (maybe altered by crossing)
-			// Not all ways (i.e. with styp==7) will imply crossins, so wie hav to check
+			// Not all ways (i.e. with styp==7) will imply crossings, so we have to check
 			crossing_t* cr = find<crossing_t>(1);
 			if(cr) {
 				dinge.remove(cr);
@@ -1596,7 +1597,7 @@ bool grund_t::remove_everything_from_way(spieler_t* sp, waytype_t wt, ribi_t::ri
 	if(weg) {
 		const koord here = pos.get_2d();
 
-		// stopps
+		// stops
 		if(flags&is_halt_flag  &&  (get_halt()->get_besitzer()==sp  || sp==welt->get_spieler(1))) {
 			bool remove_halt = get_typ()!=boden;
 			// remove only if there is no other way

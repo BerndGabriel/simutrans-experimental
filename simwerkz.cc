@@ -746,6 +746,65 @@ DBG_MESSAGE("wkz_remover()", "removing way");
 		}
 		if(w->get_waytype() == road_wt)
 		{
+			const koord pos = gr->get_pos().get_2d();
+			if(welt->get_city(pos) && welt->get_active_player_nr() != 1)
+			{
+				// Players other than the public player cannot delete a road leaving no access to any city building.
+				for(int n = 0; n < 8; n ++)
+				{
+					const koord k = pos.neighbours[n] + pos;
+					const sint8 height = welt->lookup_hgt(k);
+					const koord3d k3(k.x, k.y, height);
+					const grund_t* gr = welt->lookup(k3); 
+					const gebaeude_t* gb = gr ? gr->find<gebaeude_t>() : NULL;
+					if(gb && gb->get_besitzer() == NULL)
+					{
+						// This is a city building - check for other road connexion. 
+						bool unconnected_city_buildings = true;
+						for(int m = 0; m < 8; m ++)
+						{
+							const koord kx = k.neighbours[m] + k;
+							if(kx == pos)
+							{ 
+								// The road being deleted obviously does not count.
+								continue;
+							}
+							const sint8 heightx = welt->lookup_hgt(kx);
+							const koord3d k3x(kx.x, kx.y, heightx);
+							const grund_t* grx = welt->lookup(k3x); 
+							const weg_t* w = grx ? grx->get_weg(road_wt) : NULL;
+							if(w && w->get_ribi() > 2)
+							{
+								// We must check that the road is itself connected to somewhere other
+								// than the road that we are trying to delete.
+								for(int q = 0; q < 4; q ++)
+								{
+									const koord ky = kx.nsow[q] + kx; 
+									if(ky == pos)
+									{ 
+										// The road being deleted obviously does not count.
+										continue;
+									}
+									const sint8 heighty = welt->lookup_hgt(ky);
+									const koord3d k3y(ky.x, ky.y, heighty);
+									const grund_t* gry = welt->lookup(k3y); 
+									const weg_t* wy = gry ? gry->get_weg(road_wt) : NULL;
+									if(wy && wy->get_ribi() > 2)
+									{
+										unconnected_city_buildings = false;
+										break;
+									}
+								}
+							}
+						}
+						if(unconnected_city_buildings)
+						{
+							msg = "Cannot delete a road where to do so would leave a city building unconnected by road.";
+							return false;
+						}
+					}
+				}
+			}
 			welt->set_recheck_road_connexions();
 		}
 
@@ -1045,13 +1104,31 @@ const char *wkz_lower_t::work( karte_t *welt, spieler_t *sp, koord3d k )
 const char *wkz_setslope_t::check_pos( karte_t *welt, spieler_t *, koord3d pos)
 {
 	grund_t *gr1 = welt->lookup(pos);
-	if(gr1) {
+	if(gr1) 
+	{
 		// check for underground mode
-		if(  grund_t::underground_mode == grund_t::ugm_all  &&  !gr1->ist_tunnel()  ) {
+		if(  grund_t::underground_mode == grund_t::ugm_all  &&  !gr1->ist_tunnel()  ) 
+		{
 			return "Terraforming not possible\nhere in underground view";
 		}
+
+		if(welt->lookup_hgt(pos.get_2d()) <= welt->get_grundwasser() - 1)
+		{
+			return "Cannot terraform in deep water";
+		}
+
+		for(int n = 0; n < 8; n ++)
+		{
+			const koord p = pos.get_2d().neighbours[n] + pos.get_2d();
+			const sint8 height = welt->lookup_hgt(p);
+			if(height <= (welt->get_grundwasser() - 1))
+			{
+				return "Cannot terraform in deep water";
+			}
+		}
 	}
-	else {
+	else 
+	{
 		return "";
 	}
 	return NULL;
@@ -3540,15 +3617,18 @@ DBG_MESSAGE("wkz_halt_aux()", "building %s on square %d,%d for waytype %x", besc
 
 	if( old_halt.is_bound() ) {
 		gebaeude_t* gb = bd->find<gebaeude_t>();
-		const haus_besch_t *old_besch = gb->get_tile()->get_besch();
-		old_level = old_besch->get_level();
-		if( old_besch->get_level() >= besch->get_level() &&  old_besch->get_station_capacity() > besch->get_station_capacity()) 
+		if(gb)
 		{
-			return "Upgrade must have\na higher level";
+			const haus_besch_t *old_besch = gb->get_tile()->get_besch();
+			old_level = old_besch->get_level();
+			if( old_besch->get_level() >= besch->get_level() &&  old_besch->get_station_capacity() > besch->get_station_capacity()) 
+			{
+				return "Upgrade must have\na higher level";
+			}
+			gb->entferne( NULL );
+			delete gb;
+			halt = old_halt;
 		}
-		gb->entferne( NULL );
-		delete gb;
-		halt = old_halt;
 	}
 	else {
 		halt = suche_nahe_haltestelle(sp,welt,bd->get_pos());
@@ -5531,10 +5611,6 @@ const char *wkz_make_stop_public_t::work( karte_t *welt, spieler_t *sp, koord3d 
 		weg_t *w = NULL;
 		//convert a way here, if there is no halt or already public halt
 		if(  const grund_t *gr = welt->lookup(p)  ) {
-			if(  gr->get_typ()==grund_t::brueckenboden  ||  gr->get_grund_hang()!=hang_t::flach  ) {
-				// not making ways public on bridges or slopes
-				return "No suitable ground!";
-			}
 			w = gr->get_weg_nr(0);
 			if(  !(w  &&  (  (w->get_besitzer()==sp)  |  (sp==public_player) )) ) {
 				w = gr->get_weg_nr(1);
@@ -6862,7 +6938,7 @@ bool wkz_access_t::init(karte_t* const welt, spieler_t *sp)
 			}
 		}
 		
-		path_explorer_t::full_instant_refresh();
+		path_explorer_t::refresh_all_categories(false);
 	}
 
 	cbuffer_t message;
