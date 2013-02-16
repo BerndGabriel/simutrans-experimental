@@ -945,7 +945,7 @@ void karte_t::distribute_groundobjs_cities( settings_t const * const sets, sint1
 {
 	DBG_DEBUG("karte_t::distribute_groundobjs_cities()","distributing groundobjs");
 
-	double new_anzahl_staedte = sets->get_anzahl_staedte();
+	sint32 new_anzahl_staedte = abs(sets->get_anzahl_staedte());
 	const uint32 number_of_big_cities = umgebung_t::number_of_big_cities;
 
 	const uint32 max_city_size = sets->get_max_city_size();
@@ -957,8 +957,11 @@ void karte_t::distribute_groundobjs_cities( settings_t const * const sets, sint1
 
 printf("Creating cities ...\n");
 DBG_DEBUG("karte_t::distribute_groundobjs_cities()","prepare cities sizes");
-	vector_tpl<sint32> city_population(new_anzahl_staedte);
-	double median_population = sets->get_mittlere_einwohnerzahl();
+
+const sint32 city_population_target_count = stadt.empty() ? new_anzahl_staedte : new_anzahl_staedte + stadt.get_count() + 1;
+
+vector_tpl<sint32> city_population(city_population_target_count);
+	sint32 median_population = abs(sets->get_mittlere_einwohnerzahl());
 
 	// Generate random sizes to fit a Pareto distribution: P(x) = x_m / x^2 dx.
 	// This ensures that Zipf's law is satisfied in a random fashion, and
@@ -967,7 +970,7 @@ DBG_DEBUG("karte_t::distribute_groundobjs_cities()","prepare cities sizes");
 	// We can generate a Pareto deviate from a uniform deviate on range [0,1)
 	// by taking m_x/u where u is the uniform deviate.
 
-	while (city_population.get_count() < new_anzahl_staedte) {
+	while (city_population.get_count() < city_population_target_count) {
 		uint32 population;
 		do {
 			uint32 rand;
@@ -983,7 +986,7 @@ DBG_DEBUG("karte_t::distribute_groundobjs_cities()","prepare cities sizes");
 	}
 
 #ifdef DEBUG
-	for (unsigned i =0; i< new_anzahl_staedte; i++) 
+	for (unsigned i =0; i< city_population_target_count; i++) 
 	{
 		DBG_DEBUG("karte_t::distribute_groundobjs_cities()", "City rank %d -- %d", i, city_population[i]);
 	}	
@@ -1048,7 +1051,7 @@ DBG_DEBUG("karte_t::distribute_groundobjs_cities()","prepare cities");
 				// Hajo: do final init after world was loaded/created
 				stadt[i]->laden_abschliessen();
 
-				const uint32 citizens = city_population.get_count() < i ? city_population[i] : city_population.get_element(simrand(city_population.get_count() - 1, "void karte_t::distribute_groundobjs_cities"));
+				const uint32 citizens = city_population.get_count() > i ? city_population[i] : city_population.get_element(simrand(city_population.get_count() - 1, "void karte_t::distribute_groundobjs_cities"));
 
 				sint32 diff = (original_start_year-game_start)/2;
 				sint32 growth = 32;
@@ -1861,11 +1864,11 @@ karte_t::karte_t() :
 
 	city_road = NULL;
 
-	// Added by : Knightly
-	path_explorer_t::initialise(this);
-
 	// @author: jamespetts
 	set_scale();
+
+	// Added by : Knightly
+	path_explorer_t::initialise(this);
 
 	next_private_car_update_month = 1;
 }
@@ -1902,7 +1905,6 @@ void karte_t::set_scale()
 	}
 
 	// Ways
-
 	stringhashtable_tpl <weg_besch_t *> * ways = wegbauer_t::get_all_ways();
 
 	if(ways != NULL)
@@ -1914,7 +1916,6 @@ void karte_t::set_scale()
 	}
 
 	// Tunnels
-
 	stringhashtable_tpl <tunnel_besch_t *> * tunnels = tunnelbauer_t::get_all_tunnels();
 
 	if(tunnels != NULL)
@@ -1926,7 +1927,6 @@ void karte_t::set_scale()
 	}
 
 	// Bridges
-
 	stringhashtable_tpl <bruecke_besch_t *> * bridges = brueckenbauer_t::get_all_bridges();
 
 	if(bridges != NULL)
@@ -1937,28 +1937,27 @@ void karte_t::set_scale()
 		}
 	}
 
-
 	// Way objects
-	
 	FOR(stringhashtable_tpl<way_obj_besch_t *>, & info, *wayobj_t::get_all_wayobjects())
 	{
 		info.value->set_scale(scale_factor);
 	}
 
 	// Stations
-
 	ITERATE(hausbauer_t::modifiable_station_buildings, n)
 	{
 		hausbauer_t::modifiable_station_buildings[n]->set_scale(scale_factor); 
 	}
 
 	// Goods
-
 	const uint16 goods_count = warenbauer_t::get_waren_anzahl();
 	for(uint16 i = 0; i < goods_count; i ++)
 	{
 		warenbauer_t::get_modifiable_info(i)->set_scale(scale_factor);
 	}
+
+	// Settings
+	settings.set_scale();
 }
 
 
@@ -3828,6 +3827,17 @@ void karte_t::step()
 	DBG_DEBUG4("karte_t::step", "step halts");
 	haltestelle_t::step_all();
 
+	// Re-check paths if the time has come. 
+	// Long months means that it might be necessary to do
+	// this more than once per month to get up to date
+	// routings for goods/passengers.
+	// Default: 8192 ~ 1h (game time) at 125m/tile.
+
+	if((steps % get_settings().get_reroute_check_interval_steps()) == 0)
+	{
+		path_explorer_t::refresh_all_categories(true);
+	}
+
 	// ok, next step
 	INT_CHECK("karte_t::step 6");
 
@@ -5032,6 +5042,8 @@ DBG_DEBUG("karte_t::laden()","grundwasser %i",grundwasser);
 	season = (2+letzter_monat/3)&3; // summer always zero
 	next_month_ticks = 	( (ticks >> karte_t::ticks_per_world_month_shift) + 1 ) << karte_t::ticks_per_world_month_shift;
 	last_step_ticks = ticks;
+	network_frame_count = 0;
+	sync_steps = 0;
 	steps = 0;
 	step_mode = PAUSE_FLAG;
 

@@ -268,6 +268,7 @@
       <DisableLanguageExtensions>false</DisableLanguageExtensions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <AdditionalOptions>/F 4194304 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winmm.lib;zlibstat.lib;advapi32.lib;wsock32.lib;libbz2.lib;Strmiids.lib;Ws2_32.lib</AdditionalDependencies>
@@ -1129,6 +1130,8 @@
     <None Include="base_texts_experimental_10.13.dat" />
     <None Include="base_texts_experimental_10.15.dat" />
     <None Include="base_texts_experimental_10.2.dat" />
+    <None Include="base_texts_experimental_10.22.dat" />
+    <None Include="base_texts_experimental_10.27.dat" />
     <None Include="base_texts_experimental_10.8.dat" />
     <None Include="base_texts_experimental_6_2.dat" />
     <None Include="base_texts_experimental_6_3.dat" />

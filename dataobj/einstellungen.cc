@@ -382,6 +382,10 @@ settings_t::settings_t() :
 	hauled_reverse_time = 0;
 	turntable_reverse_time = 0;
 
+	unit_reverse_time_seconds = 65535;
+	hauled_reverse_time_seconds = 65535;
+	turntable_reverse_time_seconds = 65535;
+
 	// Global power factor
 	// @author: jamespetts
 	global_power_factor_percent = 100;
@@ -448,6 +452,8 @@ settings_t::settings_t() :
 	max_city_size = 250000;
 
 	allow_making_public = true;
+
+	reroute_check_interval_steps = 8192;
 	
 	for(uint8 i = 0; i < 17; i ++)
 	{
@@ -1098,9 +1104,48 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_bool(allow_bankruptsy);
 			file->rdwr_bool(allow_purhcases_when_insolvent);
 
-			file->rdwr_short(unit_reverse_time);
-			file->rdwr_short(hauled_reverse_time);
-			file->rdwr_short(turntable_reverse_time);
+			if(file->get_experimental_version() >= 11)
+			{
+				file->rdwr_long(unit_reverse_time);
+				file->rdwr_long(hauled_reverse_time);
+				file->rdwr_long(turntable_reverse_time);
+
+				file->rdwr_short(unit_reverse_time_seconds);
+				file->rdwr_short(hauled_reverse_time_seconds);
+				file->rdwr_short(turntable_reverse_time_seconds);
+			}
+			else
+			{
+				if(umgebung_t::networkmode)
+				{
+					if(unit_reverse_time > 65535)
+					{
+						unit_reverse_time = 65535;
+					}
+					if(hauled_reverse_time > 65535)
+					{
+						hauled_reverse_time = 65535;
+					}
+					if(turntable_reverse_time > 65535)
+					{
+						turntable_reverse_time = 65535;
+					}
+
+					turntable_reverse_time_seconds = hauled_reverse_time_seconds = unit_reverse_time_seconds = 65535;
+				}
+				uint16 short_unit_reverse_time = unit_reverse_time < 65535 ? unit_reverse_time : 65535;
+				uint16 short_hauled_reverse_time = hauled_reverse_time < 65535 ? hauled_reverse_time : 65535;
+				uint16 short_turntable_reverse_time = turntable_reverse_time < 65535 ? turntable_reverse_time : 65535;
+
+				file->rdwr_short(short_unit_reverse_time);
+				file->rdwr_short(short_hauled_reverse_time);
+				file->rdwr_short(short_turntable_reverse_time);
+
+				unit_reverse_time = short_unit_reverse_time;
+				hauled_reverse_time = short_hauled_reverse_time;
+				turntable_reverse_time = short_turntable_reverse_time;
+			}
+			
 
 		}
 
@@ -1290,12 +1335,14 @@ void settings_t::rdwr(loadsave_t *file)
 		{
 			file->rdwr_longlong(private_car_toll_per_tile);
 			file->rdwr_bool(towns_adopt_player_roads);
+			file->rdwr_long(reroute_check_interval_steps);
 		}
 		else if(umgebung_t::networkmode)
 		{
 			// This is necessary to prevent desyncs.
 			private_car_toll_per_tile = 1;
 			towns_adopt_player_roads = true;
+			reroute_check_interval_steps = 8192;
 		}
 
 		if(file->get_version()>=111002 && file->get_experimental_version() == 0) 
@@ -1927,6 +1974,10 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	hauled_reverse_time = contents.get_int("hauled_reverse_time", hauled_reverse_time);
 	turntable_reverse_time = contents.get_int("turntable_reverse_time", turntable_reverse_time);
 
+	unit_reverse_time_seconds = contents.get_int("unit_reverse_time_seconds", unit_reverse_time_seconds);
+	hauled_reverse_time_seconds = contents.get_int("hauled_reverse_time_seconds", hauled_reverse_time_seconds);
+	turntable_reverse_time_seconds = contents.get_int("turntable_reverse_time_seconds", turntable_reverse_time_seconds);
+
 	// Global power factor
 	// @author: jamespetts
 	global_power_factor_percent = contents.get_int("global_power_factor_percent", global_power_factor_percent);
@@ -1974,6 +2025,8 @@ void settings_t::parse_simuconf(tabfile_t& simuconf, sint16& disp_width, sint16&
 	assume_everywhere_connected_by_road = (bool)(contents.get_int("assume_everywhere_connected_by_road", assume_everywhere_connected_by_road));
 
 	allow_making_public = (bool)(contents.get_int("allow_making_public", allow_making_public));
+	
+	reroute_check_interval_steps = contents.get_int("reroute_check_interval_steps", reroute_check_interval_steps);
 
 	for(uint8 i = road_wt; i <= air_wt; i ++)
 	{
@@ -2305,4 +2358,22 @@ void settings_t::set_meters_per_tile(uint16 value)
 	// As simspeed2ms = meters_per_yard / seconds_per_tick
 	// seconds_per_tick = meters_per_step / yards_per_step / simspeed2ms
 	seconds_per_tick = meters_per_step / ( (1<<YARDS_PER_VEHICLE_STEP_SHIFT) * simspeed2ms); 
+}
+
+void settings_t::set_scale()
+{
+	if(unit_reverse_time_seconds < 65535)
+	{
+		unit_reverse_time = (uint32)seconds_to_ticks(unit_reverse_time_seconds, meters_per_tile);
+	}
+
+	if(hauled_reverse_time_seconds < 65535)
+	{
+		hauled_reverse_time = (uint32)seconds_to_ticks(hauled_reverse_time_seconds, meters_per_tile);
+	}
+
+	if(turntable_reverse_time_seconds < 65535)
+	{
+		turntable_reverse_time = (uint32)seconds_to_ticks(turntable_reverse_time_seconds, meters_per_tile);
+	}
 }

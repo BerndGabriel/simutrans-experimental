@@ -281,6 +281,17 @@ private:
 	 */
 	bool towns_adopt_player_roads;
 
+	/**
+	 * This is the number of steps between each call
+	 * of the path explorer full refresh method. This
+	 * value determines how frequently that the pathing
+	 * information in the game is refreshed. 8192 ~
+	 * 2h in 250m/tile or ~ 1h in 125m/tile.
+	 * NOTE: This value will revert to the default
+	 * of 8192 on every save/load until major version 11.
+	 */
+	uint32 reroute_check_interval_steps;
+
 public:
 	//Cornering settings
 	//@author: jamespetts
@@ -387,9 +398,13 @@ public:
 
 	// Reversing settings
 	//@author: jamespetts
-	uint16 unit_reverse_time;
-	uint16 hauled_reverse_time;
-	uint16 turntable_reverse_time;
+	uint32 unit_reverse_time;
+	uint32 hauled_reverse_time;
+	uint32 turntable_reverse_time;
+
+	uint16 unit_reverse_time_seconds;
+	uint16 hauled_reverse_time_seconds;
+	uint16 turntable_reverse_time_seconds;
 
 	//@author: jamespetts
 	uint16 global_power_factor_percent; 
@@ -793,9 +808,13 @@ public:
 	bool bankruptsy_allowed() const { return allow_bankruptsy; }
 	bool insolvent_purchases_allowed() const { return allow_purhcases_when_insolvent; }
 
-	uint16 get_unit_reverse_time() const { return unit_reverse_time; }
-	uint16 get_hauled_reverse_time() const { return hauled_reverse_time; }
-	uint16 get_turntable_reverse_time() const { return turntable_reverse_time; }
+	uint32 get_unit_reverse_time() const { return unit_reverse_time; }
+	uint32 get_hauled_reverse_time() const { return hauled_reverse_time; }
+	uint32 get_turntable_reverse_time() const { return turntable_reverse_time; }
+
+	uint16 get_unit_reverse_time_seconds() const { return unit_reverse_time_seconds; }
+	uint16 get_hauled_reverse_time_seconds() const { return hauled_reverse_time_seconds; }
+	uint16 get_turntable_reverse_time_seconds() const { return turntable_reverse_time_seconds; }
 
 	uint16 get_global_power_factor_percent() const { return global_power_factor_percent; }
 	void set_global_power_factor_percent(uint16 value) { global_power_factor_percent = value; }
@@ -952,6 +971,8 @@ public:
 
 	bool get_towns_adopt_player_roads() const { return towns_adopt_player_roads; }
 
+	uint32 get_reroute_check_interval_steps() const { return reroute_check_interval_steps; }
+
 #ifndef NETTOOL
 	float32e8_t get_simtime_factor() const { return simtime_factor; }
 	float32e8_t meters_to_steps(const float32e8_t &meters) const { return steps_per_meter * meters; }
@@ -960,6 +981,8 @@ public:
 #endif
 	uint8 get_max_elevated_way_building_level() const { return max_elevated_way_building_level; }
 	void set_max_elevated_way_building_level(uint8 value) { max_elevated_way_building_level = value; }
+
+	void set_scale();
 };
 
 #endif 

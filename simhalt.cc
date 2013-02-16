@@ -164,7 +164,11 @@ halthandle_t haltestelle_t::get_halt(const karte_t *welt, const koord3d pos, con
 			{
 				if(plan->get_haltlist()[i]->get_besitzer() == sp) 
 				{
-					return plan->get_haltlist()[i];
+					halthandle_t halt = plan->get_haltlist()[i];
+					if(halt->get_station_type() & dock) 
+					{
+						return halt;
+					}
 				}
 			}
 			// then for other stops to which access is allowed
@@ -174,7 +178,11 @@ halthandle_t haltestelle_t::get_halt(const karte_t *welt, const koord3d pos, con
 			{
 				if(plan->get_haltlist()[i]->check_access(sp))  
 				{
-					return plan->get_haltlist()[i];
+					halthandle_t halt = plan->get_haltlist()[i];
+					if(halt->get_station_type() & dock) 
+					{
+						return halt;
+					}
 				}
 			}
 			// so: nothing found
@@ -947,7 +955,8 @@ void haltestelle_t::step()
 	// Every 256 steps - check whether
 	// passengers/goods have been waiting
 	// too long.
-	if(check_waiting == 0)
+	// Will overflow at 255.
+	if(++check_waiting == 0)
 	{
 		vector_tpl<ware_t> *warray;
 		for(uint16 j = 0; j < warenbauer_t::get_max_catg_index(); j ++)
@@ -967,6 +976,8 @@ void haltestelle_t::step()
 					continue;
 				}
 						
+				uint16 waiting_minutes = convoi_t::get_waiting_minutes(welt->get_zeit_ms() - tmp.arrival_time);
+
 				// Checks to see whether the freight has been waiting too long.
 				// If so, discard it.
 				if(tmp.get_besch()->get_speed_bonus() > 0)
@@ -980,7 +991,6 @@ void haltestelle_t::step()
 					const uint16 thrice_journey = journey_time * 3;
 					const uint16 min_minutes = base_max_minutes / 12;
 					const uint16 max_minutes = base_max_minutes < thrice_journey ? base_max_minutes : max(thrice_journey, min_minutes);
-					uint16 waiting_minutes = convoi_t::get_waiting_minutes(welt->get_zeit_ms() - tmp.arrival_time);
 #ifdef DEBUG_SIMRAND_CALLS
 					if (talk && i == 2198)
 						dbg->message("haltestelle_t::step", "%u) check %u of %u minutes: %u %s to \"%s\"", 
@@ -1050,11 +1060,17 @@ void haltestelle_t::step()
 						tmp.menge = 0;
 					}		
 				}
+				
+				if(waiting_minutes > 2 * get_average_waiting_time(tmp.get_zwischenziel(), tmp.get_besch()->get_catg_index()))
+				{
+					// Check to see whether these passengers/this freight has been waiting more than 2x as long
+					// as the existing registered waiting times. If so, register the waiting time to prevent an
+					// artificially low time from being recorded if there is a long service interval. 
+					add_waiting_time(waiting_minutes, tmp.get_zwischenziel(), tmp.get_besch()->get_catg_index());
+				}
 			}
 		}
 	}
-	// Will overflow at 255
-	check_waiting ++;
 }
 
 
@@ -1140,7 +1156,8 @@ uint32 haltestelle_t::reroute_goods(const uint8 catg)
 			}
 
 			// since also the factory halt list is added to the ground, we can use just this ...
-			if(welt->lookup(ware.get_zielpos())->is_connected(self)) 
+			const planquadrat_t* plan = welt->lookup(ware.get_zielpos());
+			if(plan && plan->is_connected(self)) 
 			{
 				// we are already there!
 				if(  ware.to_factory  )
@@ -1563,15 +1580,15 @@ ware_t haltestelle_t::hole_ab(const ware_besch_t *wtyp, uint32 maxi, const sched
 #ifdef DEBUG_SIMRAND_CALLS
 				char buf[512];
 				sprintf(buf, "haltestelle_t::hole_ab halt \"%s\", ware \"%s\"", this->get_name(), wtyp->get_name());
-				sint32 offset = simrand(warray->get_count(), buf);
+				uint32 offset = simrand(warray->get_count(), buf);
 #else
-				sint32 offset = simrand(warray->get_count(), "haltestelle_t::hole_ab");
+				uint32 offset = simrand(warray->get_count(), "haltestelle_t::hole_ab");
 #endif
 
 				halthandle_t next_transfer;
 				uint8 catg_index;
 
-				for(uint16 i = 0;  i < warray->get_count();  i++) 
+				for(uint32 i = 0;  i < warray->get_count();  i++) 
 				{
 					ware_t &tmp = (*warray)[ i+offset ];
 					next_transfer = tmp.get_zwischenziel();
@@ -2087,7 +2104,8 @@ dbg->warning("haltestelle_t::liefere_an()","%d %s delivered to %s have no longer
 	}
 
 	// have we arrived?
-	if(welt->lookup(ware.get_zielpos())->is_connected(self)) 
+	const planquadrat_t* plan = welt->lookup(ware.get_zielpos());
+	if(plan && plan->is_connected(self)) 
 	{
 		if(ware.to_factory) 
 		{
@@ -2635,6 +2653,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 				if(!this)
 				{
 					// Probably superfluous, but best to be sure that this is really not a dud pointer.
+					dbg->error("void haltestelle_t::rdwr(loadsave_t *file)", "Handle to self not bound when saving a halt");
 					return;
 				}
 				if(self.get_rep() != this)
@@ -2723,24 +2742,66 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		k.rdwr( file );
 	}
 
-	// BG, 07-MAR-2010: the number of good categories should be read from in the savegame, 
-	//  but currently it is not stored although goods and categories can be added by the user 
-	//  and thus do not depend on file version and therefore not predicatable by simutrans.
-	unsigned max_catg_count_game = warenbauer_t::get_max_catg_index();
-	unsigned max_catg_count_file = max_catg_count_game; 
+	// BG, 07-MAR-2010: the number of goods categories should be read from in the savegame, 
+	// but currently it is not stored although goods and categories can be added by the user 
+	// and thus do not depend on file version and therefore not predicatable by simutrans.
+	
+	uint8 max_catg_count_game = warenbauer_t::get_max_catg_index();
+	uint8 max_catg_count_file;
+
+	if(file->is_saving() || file->get_experimental_version() <= 10)
+	{
+		max_catg_count_file = max_catg_count_game; 
+	}
+	
+	if(file->get_experimental_version() >= 11)
+	{
+		// Version 11 and above - the maximum category count is saved with the game.
+		file->rdwr_byte(max_catg_count_file);
+	}
 
 	const char *s;
 	init_pos = tiles.empty() ? koord::invalid : tiles.front().grund->get_pos().get_2d();
-	if(file->is_saving()) {
-		for(unsigned i=0; i<max_catg_count_file; i++) {
+	if(file->is_saving()) 
+	{
+		for(unsigned i=0; i<max_catg_count_file; i++) 
+		{
 			vector_tpl<ware_t> *warray = waren[i];
-			if(warray) {
+			uint32 ware_count = 1;
+
+			if(warray) 
+			{
 				s = "y";	// needs to be non-empty
 				file->rdwr_str(s);
-				short count = warray->get_count();
-				file->rdwr_short(count);
-				FOR(vector_tpl<ware_t>, & ware, *warray) {
-					ware.rdwr(welt,file);
+				if(file->get_experimental_version() <= 10)
+				{
+					const uint32 count = warray->get_count();
+					uint16 short_count = min(count, 65535);
+					file->rdwr_short(short_count);
+				}
+				else
+				{
+					// Experimental version 11 and above - very large/busy halts might
+					// have a count > 65535, so use the proper uint32 value.
+					
+					// In previous versions, the use of "short" lead to corrupted saved
+					// games when the value was larger than 32,767.
+
+					uint32 count = warray->get_count();
+					file->rdwr_long(count);
+				}
+				FOR(vector_tpl<ware_t>, & ware, *warray) 
+				{
+					if(file->get_experimental_version() < 11 && ware_count++ > 65535)
+					{
+						// Discard ware packets > 65535 if the version is < 11, as trying
+						// to save greater than this number will corrupt the save.
+						ware.menge = 0;
+					}
+					else
+					{
+						ware.rdwr(welt,file);
+					}
 				}
 			}
 		}
@@ -2770,13 +2831,23 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		// restoring all goods in the station
 		char s[256];
 		file->rdwr_str(s, lengthof(s));
+		uint32 count;
 		while(*s) 
 		{
-			short count;
-			file->rdwr_short(count);
+			if(file->get_experimental_version() >= 11)
+			{
+				file->rdwr_long(count);
+			}
+			else
+			{
+				// Older versions stored only 16-bit count values.
+				uint16 old_count = 0;
+				file->rdwr_short(old_count);
+				count = (uint32)old_count;
+			}
 			if(count > 0) 
 			{
-				for(int i = 0; i < count; i++) 
+				for(uint32 i = 0; i < count; i++) 
 				{
 					// add to internal storage (use this function, since the old categories were different)
 					ware_t ware(welt, file);
@@ -2883,7 +2954,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 	if(file->get_experimental_version() >= 2)
 	{
-		for(short i = 0; i < max_catg_count_file; i ++)
+		for(int i = 0; i < max_catg_count_file; i ++)
 		{
 			if(file->is_saving())
 			{
@@ -3053,7 +3124,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 void haltestelle_t::laden_abschliessen(bool need_recheck_for_walking_distance)
 {
 	// fix good destination coordinates
-	for(unsigned i=0; i<warenbauer_t::get_max_catg_index(); i++) 
+	for(uint8 i = 0; i < warenbauer_t::get_max_catg_index(); i++) 
 	{
 		if(waren[i]) 
 		{
@@ -3065,13 +3136,13 @@ void haltestelle_t::laden_abschliessen(bool need_recheck_for_walking_distance)
 			// merge identical entries (should only happen with old games)
 			ITERATE_PTR(warray,j)
 			{
-				if(  (*warray)[j].menge==0  ) 
+				if((*warray)[j].menge == 0) 
 				{
 					continue;
 				}
-				for(unsigned k=j+1; k<warray->get_count(); k++) 
+				for(uint32 k = j + 1; k < warray->get_count(); k++) 
 				{
-					if(  (*warray)[k].menge > 0  &&  (*warray)[j].can_merge_with( (*warray)[k] )  ) 
+					if((*warray)[k].menge > 0 && (*warray)[j].can_merge_with((*warray)[k])) 
 					{
 						(*warray)[j].menge += (*warray)[k].menge;
 						(*warray)[k].menge = 0;

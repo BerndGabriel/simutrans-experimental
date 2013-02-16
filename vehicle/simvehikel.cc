@@ -774,12 +774,14 @@ vehikel_t::unload_freight(halthandle_t halt)
 {
 	uint16 sum_menge = 0;
 
-	//slist_tpl<ware_t> kill_queue;
-	vector_tpl<ware_t> kill_queue;
-	if(halt->is_enabled( get_fracht_typ() )) 
+	if(halt->is_enabled(get_fracht_typ())) 
 	{
 		if (!fracht.empty())
 		{
+			halthandle_t end_halt;
+			halthandle_t via_halt;
+			vector_tpl<ware_t> kill_queue;
+			uint8 count = 0;
 			FOR(slist_tpl<ware_t>, & tmp, fracht) 
 			{
 				if(&tmp == NULL)
@@ -787,8 +789,13 @@ vehikel_t::unload_freight(halthandle_t halt)
 					continue;
 				}
 
-				halthandle_t end_halt = tmp.get_ziel();
-				halthandle_t via_halt = tmp.get_zwischenziel();
+				if(++count == 255)
+				{
+					INT_CHECK("simvehikel 793");
+				}
+
+				end_halt = tmp.get_ziel();
+				via_halt = tmp.get_zwischenziel();
 				
 				// probleme mit fehlerhafter ware
 				// vielleicht wurde zwischendurch die
@@ -812,7 +819,7 @@ vehikel_t::unload_freight(halthandle_t halt)
 					// hier sollte nur ordentliche ware verabeitet werden
 					// "here only tidy commodity should be processed" (Babelfish) 
 					
-					if(halt != end_halt && (tmp.is_passenger() && !halt->is_within_walking_distance_of(via_halt)) && halt->is_overcrowded(tmp.get_besch()->get_catg_index()) && welt->get_settings().is_avoid_overcrowding())
+					if(halt != end_halt && welt->get_settings().is_avoid_overcrowding() && tmp.is_passenger() && !halt->is_within_walking_distance_of(via_halt) && halt->is_overcrowded(tmp.get_besch()->get_catg_index()))
 					{
 						// Halt overcrowded - discard goods/passengers, and collect no revenue.
 						// Experimetal 7.2 - also calculate a refund.
@@ -946,17 +953,17 @@ vehikel_t::unload_freight(halthandle_t halt)
 					}				
 					kill_queue.append(tmp);
 
-					INT_CHECK("simvehikel 937");
+					INT_CHECK("simvehikel 955");
 				}
 			}
+			
+			ITERATE(kill_queue, i)
+			{
+				total_freight -= kill_queue[i].menge;
+				const bool ok = fracht.remove(kill_queue[i]);
+				assert(ok);
+			}
 		}
-	}
-
-	ITERATE(kill_queue,i)
-	{
-		total_freight -= kill_queue[i].menge;
-		bool ok = fracht.remove(kill_queue[i]);
-		assert(ok);
 	}
 
 	return sum_menge;
@@ -2334,7 +2341,7 @@ bool vehikel_t::check_access(const weg_t* way) const
 		return true;
 	}
 	const grund_t* const gr = welt->lookup(get_pos());
-	const weg_t* const current_way = gr ? welt->lookup(get_pos())->get_weg(get_waytype()) : NULL;
+	const weg_t* const current_way = gr ? gr->get_weg(get_waytype()) : NULL;
 	if(current_way == NULL)
 	{
 		return true;
@@ -3209,7 +3216,8 @@ bool waggon_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, route_t
 				dummy, target_halt.is_bound() ? 100000 : 1, false, true);
 	}
 	target_halt = halthandle_t(); // no block reserved
-	return route->calc_route(welt, start, ziel, this, max_speed, cnv != NULL ? cnv->get_heaviest_vehicle() : get_sum_weight(), 8888 /*cnv->get_tile_length()*/ );
+	const uint16 tile_length = cnv->get_schedule()->get_current_eintrag().reverse ? 8888 : cnv->get_tile_length();
+	return route->calc_route(welt, start, ziel, this, max_speed, cnv != NULL ? cnv->get_heaviest_vehicle() : get_sum_weight(), tile_length);
 }
 
 
@@ -3234,12 +3242,12 @@ bool waggon_t::ist_befahrbar(const grund_t *bd) const
 	// now check for special signs
 	if(sch->has_sign()) {
 		const roadsign_t* rs = bd->find<roadsign_t>();
-		if(  rs->get_besch()->get_wtyp()==get_waytype()  ) {
-			if(  rs->get_besch()->get_min_speed() > 0  &&  rs->get_besch()->get_min_speed() > cnv->get_min_top_speed()  ) {
+		if(rs && rs->get_besch()->get_wtyp()==get_waytype()  ) {
+			if(rs->get_besch()->get_min_speed() > 0  &&  rs->get_besch()->get_min_speed() > cnv->get_min_top_speed()  ) {
 				// below speed limit
 				return false;
 			}
-			if(  rs->get_besch()->is_private_way()  &&  (rs->get_player_mask() & (1<<get_player_nr()) ) == 0  ) {
+			if(rs && rs->get_besch()->is_private_way()  &&  (rs->get_player_mask() & (1<<get_player_nr()) ) == 0  ) {
 				// prvate road
 				return false;
 			}
@@ -3413,7 +3421,7 @@ bool waggon_t::is_weg_frei_longblock_signal( signal_t *sig, uint16 next_block, i
 	while(  fahrplan_index != cnv->get_schedule()->get_aktuell()  ) {
 		// now search
 		// search for route
-		success = target_rt.calc_route( welt, cur_pos, cnv->get_schedule()->eintrag[fahrplan_index].pos, this, this->get_convoi()->get_heaviest_vehicle(), speed_to_kmh(cnv->get_min_top_speed()), 8888 /*cnv->get_tile_length()*/ );
+		success = target_rt.calc_route( welt, cur_pos, cnv->get_schedule()->eintrag[fahrplan_index].pos, this, get_convoi()->get_heaviest_vehicle(), speed_to_kmh(cnv->get_min_top_speed()), 8888 /*cnv->get_tile_length()*/ );
 		if(  success  ) {
 			success = block_reserver( &target_rt, 1, next_next_signal, dummy, 0, true, false );
 			block_reserver( &target_rt, 1, dummy, dummy, 0, false, false );
@@ -3796,7 +3804,7 @@ bool waggon_t::ist_weg_frei(int & restart_speed,bool)
  * return the last checked block
  * @author prissi
  */
-bool waggon_t::block_reserver(route_t *route, uint16 start_index, uint16 &next_signal_index, uint16 &next_crossing_index, int count, bool reserve, bool force_unreserve  ) const
+bool waggon_t::block_reserver(route_t *route, uint16 start_index, uint16 &next_signal_index, uint16 &next_crossing_index, int count, bool reserve, bool force_unreserve) const
 {
 	bool success=true;
 #ifdef MAX_CHOOSE_BLOCK_TILES
@@ -3819,19 +3827,22 @@ bool waggon_t::block_reserver(route_t *route, uint16 start_index, uint16 &next_s
 	ribi_t::ribi ribi = ribi_t::keine;
 	halthandle_t dest_halt = halthandle_t();
 	uint16 early_platform_index = INVALID_INDEX;
-	bool do_early_platform_search =	cnv != NULL
-		&& cnv->get_line().is_bound()
-		&& cnv->get_line()->get_schedule() != NULL
-		&& (cnv->get_line()->get_schedule()->is_mirrored() || cnv->get_line()->get_schedule()->is_bidirectional())
-		&& cnv->get_schedule() != NULL 
-		&& cnv->get_schedule()->get_current_eintrag().ladegrad == 0;
+	const schedule_t* fpl = NULL;
+	if(cnv != NULL)
+	{
+		fpl = cnv->get_schedule();
+	}
+	bool do_early_platform_search =	fpl != NULL
+		&& (fpl->is_mirrored() || fpl->is_bidirectional())
+		&& fpl->get_current_eintrag().ladegrad == 0;
 
-	if( do_early_platform_search ) {
+	if(do_early_platform_search) 
+	{
 		platform_size_needed = cnv->get_tile_length();
 		dest_halt = haltestelle_t::get_halt(welt, cnv->get_schedule()->get_current_eintrag().pos, cnv->get_besitzer());
 	}
 
-	// find next blocksegment enroute
+	// find next block segment enroute
 	uint16 i=start_index;
 	uint16 skip_index=INVALID_INDEX;
 	next_signal_index=INVALID_INDEX;
@@ -3870,13 +3881,15 @@ bool waggon_t::block_reserver(route_t *route, uint16 start_index, uint16 &next_s
 				next_crossing_index = i;
 			}
 			// check if there is an early platform available to stop at
-			if ( do_early_platform_search )
+			if (do_early_platform_search)
 			{
-				if( early_platform_index==INVALID_INDEX ) 
+				if(early_platform_index == INVALID_INDEX)
 				{
-					if( gr->get_halt().is_bound() && gr->get_halt()==dest_halt ) 
+					/*const char* TEST_this_halt = gr->get_halt().is_bound() ? gr->get_halt()->get_name() : "NULL";
+					const char* TEST_dest_halt = dest_halt->get_name();*/
+					if(gr->get_halt().is_bound() && gr->get_halt() == dest_halt) 
 					{
-						if( ribi==ribi_last )
+						if(ribi == ribi_last)
 						{
 							platform_size_found++;
 						} 
@@ -3884,7 +3897,8 @@ bool waggon_t::block_reserver(route_t *route, uint16 start_index, uint16 &next_s
 						{
 							platform_size_found = 1;
 						}
-						if( platform_size_found>=platform_size_needed )
+
+						if(platform_size_found >= platform_size_needed)
 						{
 							// Now check to make sure that the actual destination tile is not just a few tiles down the same platform
 							uint16 route_ahead_check = i;
@@ -3892,7 +3906,8 @@ bool waggon_t::block_reserver(route_t *route, uint16 start_index, uint16 &next_s
 							while(current_pos != cnv->get_schedule()->get_current_eintrag().pos && haltestelle_t::get_halt(welt, current_pos, cnv->get_besitzer()) == dest_halt && route_ahead_check < route->get_count())
 							{
 								current_pos = route->position_bei(route_ahead_check);
-								route_ahead_check ++;
+								route_ahead_check++;
+								platform_size_found++;
 							}
 							if(current_pos != cnv->get_schedule()->get_current_eintrag().pos)
 							{
@@ -3910,14 +3925,24 @@ bool waggon_t::block_reserver(route_t *route, uint16 start_index, uint16 &next_s
 						platform_size_found = 0;
 					}
 				} 
-				else if( ribi_last==ribi && gr->get_halt().is_bound() && gr->get_halt()==dest_halt ) 
+				else if(ribi_last == ribi && gr->get_halt().is_bound() && gr->get_halt() == dest_halt)
 				{
-					// a platform was found, but it continues so go on to its end
+					// A platform was found, but it continues so go on to its end
 					early_platform_index = i;
 				} 
 				else 
 				{
-					// a platform was found, and has ended, thus the last index was fine.
+					// A platform was found, and has ended - check where this convoy should stop.
+					if(platform_size_needed < platform_size_found && !fpl->get_current_eintrag().reverse)
+					{
+						// Do not go to the end, but stop part way along the platform.
+						const uint16 difference = platform_size_found - platform_size_needed;
+						early_platform_index -= (difference / 2u);
+						if(difference > 2)
+						{
+							early_platform_index ++;
+						}
+					}
 					sch1->unreserve(cnv->self);
 					success = true;
 					break;
