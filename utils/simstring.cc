@@ -1,5 +1,6 @@
 #include "simstring.h"
 
+#include <math.h>
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
@@ -101,7 +102,7 @@ void money_to_string(char * p, double f)
 	char   *tp = tmp;
 	int    i,l;
 
-	if(  f>1000.0*large_number_factor  ) {
+	if(  fabs(f)>1000.0*large_number_factor  ) {
 		sprintf( tp, "%.1f", f/large_number_factor );
 	}
 	else {
