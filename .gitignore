@@ -1,6 +1,9 @@
 *.ncb
 *.suo
 *.vcproj.*
+/libs
+/binaries
+/Default
 /Debug
 /Release
 /build
