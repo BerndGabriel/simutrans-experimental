@@ -289,11 +289,11 @@ uint32 convoi_t::move_to(koord3d const& k, uint16 const start_index)
 
 		steps_driven = -1;
 
-		if (grund_t const* const gr = welt->lookup(v.get_pos())) {
-			v.mark_image_dirty(v.get_bild(), v.get_hoff());
+		if(  grund_t const* gr = welt->lookup(v.get_pos())  ) {
+			v.mark_image_dirty(v.get_bild(), 0);
 			v.verlasse_feld();
 			// maybe unreserve this
-			if (schiene_t* const rails = obj_cast<schiene_t>(gr->get_weg(v.get_waytype()))) {
+			if(  schiene_t* const rails = obj_cast<schiene_t>(gr->get_weg(v.get_waytype()))  ) {
 				rails->unreserve(&v);
 			}
 		}
@@ -540,6 +540,9 @@ void convoi_t::rotate90( const sint16 y_size )
 	record_pos.rotate90( y_size );
 	home_depot.rotate90( y_size );
 	route.rotate90( y_size );
+	if(  fpl_target!=koord3d::invalid  ) {
+		fpl_target.rotate90( y_size );
+	}
 	if(fpl) {
 		fpl->rotate90( y_size );
 	}
@@ -1842,12 +1845,6 @@ bool convoi_t::can_go_alte_richtung()
 			if (route.front() != v->get_pos() && route.position_bei(1) != v->get_pos()) {
 				route.insert(v->get_pos());
 			}
-			// eventually we need to add also a previous position to this path
-			if(v->get_besch()->get_length()>8  &&  i+1<anz_vehikel) {
-				if (route.front() != v->get_pos_prev() && route.position_bei(1) != v->get_pos_prev()) {
-					route.insert(v->get_pos_prev());
-				}
-			}
 		}
 	}
 
@@ -1864,24 +1861,21 @@ bool convoi_t::can_go_alte_richtung()
 			if(route.position_bei(idx)==vehicle_start_pos) {
 				v->neue_fahrt(idx, false );
 				ok = true;
+
+				// check direction
+				uint8 richtung = v->get_fahrtrichtung();
+				uint8 neu_richtung = v->calc_richtung( route.position_bei(max(idx-1,0)).get_2d(), v->get_pos_next().get_2d());
+				// we need to move to this place ...
+				if(neu_richtung!=richtung  &&  (i!=0  ||  anz_vehikel==1  ||  ribi_t::ist_kurve(neu_richtung)) ) {
+					// 90 deg bend!
+					return false;
+				}
+
 				break;
 			}
 		}
 		// too short?!? (rather broken then!)
 		if(!ok) {
-			return false;
-		}
-	}
-
-	// on curves the vehicle may be already on the next tile but with a wrong direction
-	for(i=0; i<anz_vehikel; i++) {
-		vehikel_t* v = fahr[i];
-
-		uint8 richtung = v->get_fahrtrichtung();
-		uint8 neu_richtung = v->richtung();
-		// we need to move to this place ...
-		if(neu_richtung!=richtung  &&  (i!=0  ||  anz_vehikel==1  ||  ribi_t::ist_kurve(neu_richtung)) ) {
-			// 90 deg bend!
 			return false;
 		}
 	}
@@ -2719,49 +2713,64 @@ void convoi_t::calc_gewinn()
  */
 void convoi_t::hat_gehalten(halthandle_t halt)
 {
-	sint64 gewinn = 0;
 	grund_t *gr=welt->lookup(fahr[0]->get_pos());
 
 	// now find out station length
-	int station_length=0;
+	uint16 vehicles_loading = 0;
 	if(  gr->ist_wasser()  ) {
 		// harbour has any size
-		station_length = 24*16;
+		vehicles_loading = anz_vehikel;
 	}
 	else {
 		// calculate real station length
+		// and numbers of vehicles that can be (un)loaded
 		koord zv = koord( ribi_t::rueckwaerts(fahr[0]->get_fahrtrichtung()) );
 		koord3d pos = fahr[0]->get_pos();
-		const grund_t *grund = welt->lookup(pos);
-		if(  grund->get_weg_yoff()==TILE_HEIGHT_STEP  ) {
-			// start on bridge?
-			pos.z ++;
-		}
-		while(  grund  &&  grund->get_halt() == halt  ) {
-			station_length += 16;
+		// start on bridge?
+		pos.z += gr->get_weg_yoff() / TILE_HEIGHT_STEP;
+		// difference between actual station length and vehicle lenghts
+		sint16 station_length = -fahr[vehicles_loading]->get_besch()->get_length();
+		do {
+			// advance one station tile
+			station_length += CARUNITS_PER_TILE;
+
+			while(station_length >= 0) {
+				vehicles_loading++;
+				if (vehicles_loading < anz_vehikel) {
+					station_length -= fahr[vehicles_loading]->get_besch()->get_length();
+				}
+				else {
+					// all vehicles fit into station
+					goto station_tile_search_ready;
+				}
+			}
+
+			// search for next station tile
 			pos += zv;
-			grund = welt->lookup(pos);
-			if(  grund==NULL  ) {
-				grund = welt->lookup(pos-koord3d(0,0,1));
-				if(  grund &&  grund->get_weg_yoff()!=TILE_HEIGHT_STEP  ) {
+			gr = welt->lookup(pos);
+			if (gr == NULL) {
+				gr = welt->lookup(pos-koord3d(0,0,1));
+				if (gr == NULL) {
+					gr = welt->lookup(pos-koord3d(0,0,2));
+				}
+				if (gr  &&  (pos.z != gr->get_hoehe() + gr->get_weg_yoff()/TILE_HEIGHT_STEP) ) {
 					// not end/start of bridge
 					break;
 				}
 			}
-		}
+
+		}  while(  gr  &&  gr->get_halt() == halt  );
+		// finished
+station_tile_search_ready: ;
 	}
 
 	// only load vehicles in station
 	// don't load when vehicle is being withdrawn
 	bool changed_loading_level = false;
 	uint32 time = WTT_LOADING;	// min time for loading/unloading
-	for(unsigned i=0; i<anz_vehikel; i++) {
+	sint64 gewinn = 0;
+	for(unsigned i=0; i<vehicles_loading; i++) {
 		vehikel_t* v = fahr[i];
-
-		station_length -= v->get_besch()->get_length();
-		if(station_length<0) {
-			break;
-		}
 
 		// we need not to call this on the same position
 		if(  v->last_stop_pos != v->get_pos()  ) {
@@ -3509,8 +3518,8 @@ bool convoi_t::can_overtake(overtaker_t *other_overtaker, sint32 other_speed, si
 	// Flat tiles, with no stops, no crossings, no signs, no change of road speed limit
 	// First phase: no traffic except me and my overtaken car in the dangerous zone
 	unsigned int route_index = fahr[0]->get_route_index()+1;
-	koord pos_prev = fahr[0]->get_pos_prev().get_2d();
 	koord3d pos = fahr[0]->get_pos();
+	koord pos_prev = (route_index > 2 ? route.position_bei(route_index-2) : pos).get_2d();
 	koord3d pos_next;
 
 	while( distance > 0 ) {

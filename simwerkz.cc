@@ -1133,7 +1133,7 @@ const char *wkz_setslope_t::wkz_set_slope_work( spieler_t *sp, koord3d pos, int 
 			}
 
 			// now prevent being lowered below neighbouring water
-			sint8 water_table = (water_hgt >= (gr1->get_hoehe() + gr1->get_grund_hang() ? 1 : 0)) ? water_hgt : welt->get_grundwasser() - 4;
+			sint8 water_table = (water_hgt >= (gr1->get_hoehe() + (gr1->get_grund_hang() ? 1 : 0))) ? water_hgt : welt->get_grundwasser() - 4;
 			sint8 min_neighbour_height = gr1->get_hoehe();
 
 			for(  sint16 i = 0 ;  i < 8 ;  i++  ) {
@@ -1452,14 +1452,14 @@ const char *wkz_transformer_t::work( spieler_t *sp, koord3d pos )
 	// full underground mode: coordinate is on ground, adjust it to one level below ground
 	// not possible in network mode!
 	if (!env_t::networkmode  &&  grund_t::underground_mode == grund_t::ugm_all) {
-		pos = gr->get_pos() - koord3d(0,0,1);
+		pos = gr->get_pos() - koord3d( 0, 0, env_t::pak_height_conversion_factor );
 	}
 	// search for factory
 	// must be independent of network mode
 	if (gr->get_pos().z <= pos.z) {
 		fab = leitung_t::suche_fab_4(k);
 	}
-	else if (gr->get_pos().z == pos.z+1) {
+	else if (gr->get_pos().z == pos.z+env_t::pak_height_conversion_factor) {
 		fab = fabrik_t::get_fab( k);
 		underground = true;
 	}
@@ -1478,6 +1478,10 @@ const char *wkz_transformer_t::work( spieler_t *sp, koord3d pos )
 		}
 
 		if(welt->lookup(pos)) {
+			return "Tile not empty.";
+		}
+
+		if(  env_t::pak_height_conversion_factor==2 && welt->lookup(pos + koord3d( 0, 0, 1 ))  ) {
 			return "Tile not empty.";
 		}
 

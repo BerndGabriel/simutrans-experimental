@@ -86,7 +86,7 @@ void interaction_t::move_cursor( const event_t &ev )
 					is_dragging = false;
 				}
 				else if(ev.ev_class==EVENT_DRAG) {
-					if(!is_dragging  &&  wkz->check_pos( world->get_active_player(), prev_pos )==NULL) {
+					if(!is_dragging  &&  prev_pos != koord3d::invalid  &&  wkz->check_pos( world->get_active_player(), prev_pos )==NULL) {
 						const char* err = world->get_scenario()->is_work_allowed_here(world->get_active_player(), wkz->get_id(), wkz->get_waytype(), prev_pos);
 						if (err == NULL) {
 							is_dragging = true;
@@ -333,16 +333,13 @@ bool interaction_t::process_event( event_t &ev )
 
 	// Handle map drag with right-click
 
-	bool cursor_hidden = false;
 	static bool left_drag = false;
 
 	if(IS_RIGHTCLICK(&ev)) {
 		display_show_pointer(false);
-		cursor_hidden = true;
 	}
 	else if(IS_RIGHTRELEASE(&ev)) {
 		display_show_pointer(true);
-		cursor_hidden = false;
 	}
 	else if(IS_RIGHTDRAG(&ev)) {
 		// unset following
@@ -354,25 +351,17 @@ bool interaction_t::process_event( event_t &ev )
 		 * => move the map */
 		if(  !left_drag  ) {
 			display_show_pointer(false);
-			cursor_hidden = true;
 			left_drag = true;
 		}
 		world->get_viewport()->set_follow_convoi( convoihandle_t() );
 		move_view(ev);
 		ev.ev_code = EVENT_NONE;
 	}
-	else {
-		if(cursor_hidden) {
-			display_show_pointer(true);
-			cursor_hidden = false;
-		}
-	}
 
 	if(  IS_LEFTRELEASE(&ev)  &&  left_drag  ) {
 		// show then mouse and swallow this event if we were dragging before
 		ev.ev_code = EVENT_NONE;
 		display_show_pointer(true);
-		cursor_hidden = false;
 		left_drag = false;
 	}
 
