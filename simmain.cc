@@ -124,7 +124,7 @@ static void show_times(karte_t *welt, karte_ansicht_t *view)
 
 	image_id img = grund_besch_t::ausserhalb->get_bild(0,0);
 
- 	long ms = dr_time();
+	uint32 ms = dr_time();
 	for (i = 0;  i < 6000000;  i++) {
 #ifdef MULTI_THREAD
  		display_img( img, 50, 50, 1, 0);
@@ -217,7 +217,7 @@ void modal_dialogue( gui_frame_t *gui, ptrdiff_t magic, karte_t *welt, bool (*qu
 		welt->reset_timer();
 
 		long ms_pause = max( 25, 1000/env_t::fps );
-		uint32 last_step = dr_time()+ms_pause;
+		uint32 last_step = dr_time();
 		uint step_count = 5;
 		while(  win_is_open(gui)  &&  !env_t::quit_simutrans  &&  !quit()  ) {
 			do {
@@ -245,7 +245,7 @@ void modal_dialogue( gui_frame_t *gui, ptrdiff_t magic, karte_t *welt, bool (*qu
 					break;
 				}
 				dr_sleep(5);
-			} while(  dr_time()<last_step  );
+			} while(  dr_time() - last_step < ms_pause );
 			DBG_DEBUG4("zeige_banner", "calling welt->sync_step");
 			welt->sync_step( ms_pause, true, true );
 			DBG_DEBUG4("zeige_banner", "calling welt->step");
@@ -509,6 +509,7 @@ int simu_main(int argc, char** argv)
 	// only the specified pak conf should override this!
 	uint16 pak_diagonal_multiplier = env_t::default_settings.get_pak_diagonal_multiplier();
 	sint8 pak_tile_height = TILE_HEIGHT_STEP;
+	sint8 pak_height_conversion_factor = env_t::pak_height_conversion_factor;
 
 	// parsing config/simuconf.tab
 	printf("Reading low level config data ...\n");
@@ -844,10 +845,16 @@ int simu_main(int argc, char** argv)
 	if(  simuconf.open(obj_conf.c_str())  ) {
 		sint16 idummy;
 		string dummy;
+		env_t::default_settings.set_way_height_clearance( 0 );
 		dbg->important("parse_simuconf() at %s: ", obj_conf.c_str());
 		env_t::default_settings.parse_simuconf( simuconf, idummy, idummy, idummy, dummy );
 		pak_diagonal_multiplier = env_t::default_settings.get_pak_diagonal_multiplier();
+		pak_height_conversion_factor = env_t::pak_height_conversion_factor;
 		pak_tile_height = TILE_HEIGHT_STEP;
+		if(  env_t::default_settings.get_way_height_clearance() == 0  ) {
+			// ok, set default as conversion factor
+			env_t::default_settings.set_way_height_clearance( pak_height_conversion_factor );
+		}
 		simuconf.close();
 	}
 	// and parse again the user settings
@@ -889,9 +896,10 @@ int simu_main(int argc, char** argv)
 		}
 	}
 
-	// now (re)set the correct length from the pak
+	// now (re)set the correct length and other pak set only settings
 	env_t::default_settings.set_pak_diagonal_multiplier( pak_diagonal_multiplier );
 	vehikel_basis_t::set_diagonal_multiplier( pak_diagonal_multiplier, pak_diagonal_multiplier );
+	env_t::pak_height_conversion_factor = pak_height_conversion_factor;
 	TILE_HEIGHT_STEP = pak_tile_height;
 
 	convoihandle_t::init( 1024 );

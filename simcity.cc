@@ -1412,7 +1412,7 @@ void stadt_t::change_size( sint64 delta_citizen, bool new_town)
 }
 
 
-void stadt_t::step(long delta_t)
+void stadt_t::step(uint32 delta_t)
 {
 	settings_t const& s = welt->get_settings();
 	// recalculate factory going ratios where necessary
@@ -1624,17 +1624,9 @@ void stadt_t::calc_growth()
 
 	// OK.  Now we must adjust for the steps per month.
 	// Cities were growing way too fast without this adjustment.
-	// The original value was based on 18 bit months.
-	const sint64 tpm = welt->ticks_per_world_month;
-	const sint64 old_ticks_per_world_month = (1ll << 18);
-	if(  tpm > old_ticks_per_world_month  ) {
-		new_unsupplied_city_growth *= (tpm / old_ticks_per_world_month);
-	}
-	else {
-		new_unsupplied_city_growth /= (old_ticks_per_world_month / tpm);
-	}
-	// on may add another multiplier here for further slowdown/speed up
+	new_unsupplied_city_growth = welt->inverse_scale_with_month_length( new_unsupplied_city_growth );
 
+	// on may add another multiplier here for further slowdown/speed up
 	unsupplied_city_growth += new_unsupplied_city_growth;
 }
 

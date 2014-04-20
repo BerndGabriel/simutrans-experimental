@@ -36,6 +36,7 @@
 #include "components/gui_image_list.h"
 #include "messagebox.h"
 #include "depot_frame.h"
+#include "schedule_list.h"
 
 #include "../besch/ware_besch.h"
 #include "../besch/intro_dates.h"
@@ -377,13 +378,13 @@ void depot_frame_t::layout(scr_size *size)
 	* build_vehicle_lists() fills loks_vec and waggon_vec.
 	* Total width will be expanded to match complete columns in panel.
 	*/
-	const scr_coord_val total_h = PANEL_VSTART + VINFO_HEIGHT + D_TITLEBAR_HEIGHT + TAB_HEADER_V_SIZE + 2 * gui_image_list_t::BORDER + D_MARGIN_BOTTOM + 1;
+	const scr_coord_val total_h = PANEL_VSTART + VINFO_HEIGHT + D_TITLEBAR_HEIGHT + D_TAB_HEADER_HEIGHT + 2 * gui_image_list_t::BORDER + D_MARGIN_BOTTOM + 1;
 	scr_coord_val PANEL_ROWS = max(1, ((win_size.h-total_h)/grid.y) );
 	if(  size  &&  size->h == 0  ) {
 		PANEL_ROWS = 3;
 	}
-	const scr_coord_val PANEL_HEIGHT = PANEL_ROWS * grid.y + TAB_HEADER_V_SIZE + 2 * gui_image_list_t::BORDER;
-	const scr_coord_val MIN_PANEL_HEIGHT = grid.y + TAB_HEADER_V_SIZE + 2 * gui_image_list_t::BORDER;
+	const scr_coord_val PANEL_HEIGHT = PANEL_ROWS * grid.y + D_TAB_HEADER_HEIGHT + 2 * gui_image_list_t::BORDER;
+	const scr_coord_val MIN_PANEL_HEIGHT = grid.y + D_TAB_HEADER_HEIGHT + 2 * gui_image_list_t::BORDER;
 	const scr_coord_val INFO_VSTART = PANEL_VSTART + PANEL_HEIGHT + div_tabbottom.get_size().h;
 
 	/*
@@ -874,6 +875,19 @@ void depot_frame_t::update_data()
 	// update the line selector
 	line_selector.clear_elements();
 
+	if(  !last_selected_line.is_bound()  ) {
+		// new line may have a valid line now
+		last_selected_line = selected_line;
+		// if still nothing, resort to line management dialoge
+		if(  !last_selected_line.is_bound()  ) {
+			// try last specific line
+			last_selected_line = schedule_list_gui_t::selected_line[ depot->get_besitzer()->get_player_nr() ][ depot->get_line_type() ];
+		}
+		if(  !last_selected_line.is_bound()  ) {
+			// try last general line
+			last_selected_line = schedule_list_gui_t::selected_line[ depot->get_besitzer()->get_player_nr() ][ 0 ];
+		}
+	}
 	if(  last_selected_line.is_bound()  ) {
 		line_selector.insert_element( new line_scrollitem_t( last_selected_line ) );
 	}
@@ -898,16 +912,21 @@ void depot_frame_t::update_data()
 	line_selector.append_element( new gui_scrolled_list_t::const_text_scrollitem_t( line_seperator, COL_BLACK ) );
 
 	// check all matching lines
-	selected_line = linehandle_t();
+	if(  cnv.is_bound()  ) {
+		selected_line = cnv->get_line();
+	}
 	vector_tpl<linehandle_t> lines;
 	get_line_list(depot, &lines);
 	line_selector.set_selection( 0 );
 	FOR(  vector_tpl<linehandle_t>,  const line,  lines  ) {
 		line_selector.append_element( new line_scrollitem_t(line) );
-		if(  cnv.is_bound()  &&  line == cnv->get_line()  ) {
+		if(  selected_line.is_bound()  &&  selected_line == line  ) {
 			line_selector.set_selection( line_selector.count_elements() - 1 );
-			selected_line = line;
 		}
+	}
+	if(  line_selector.get_selection() == 0  ) {
+		// no line selected
+		selected_line = linehandle_t();
 	}
 	line_selector.sort( last_selected_line.is_bound()+3, NULL );
 
@@ -1107,6 +1126,7 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *komp, value_t p)
 						}
 					}
 					line_selector.set_focusable( false );
+					last_selected_line = linehandle_t();	// clear last selected line so we can get a new one ...
 					depot->call_depot_tool('l', convoihandle_t(), buf);
 				}
 				return true;
@@ -1497,7 +1517,7 @@ void depot_frame_t::draw_vehicle_info_text(scr_coord pos)
 	const vehikel_besch_t *veh_type = NULL;
 	bool new_vehicle_length_sb_force_zero = false;
 	scr_coord relpos = scr_coord( 0, ((gui_scrollpane_t *)tabs.get_aktives_tab())->get_scroll_y() );
-	int sel_index = lst->index_at( pos + tabs.get_pos() - relpos, x, y - D_TITLEBAR_HEIGHT - TAB_HEADER_V_SIZE);
+	int sel_index = lst->index_at( pos + tabs.get_pos() - relpos, x, y - D_TITLEBAR_HEIGHT - D_TAB_HEADER_HEIGHT);
 
 	if(  (sel_index != -1)  &&  (tabs.getroffen(x - pos.x, y - pos.y - D_TITLEBAR_HEIGHT))  ) {
 		// cursor over a vehicle in the selection list

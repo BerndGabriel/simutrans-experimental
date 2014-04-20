@@ -263,10 +263,10 @@ private:
 	sint32 wait_lock;
 
 	/**
-	* time, when a convoi waiting for full load will drive on
-	* @author prissi
-	*/
-	uint32 go_on_ticks;
+	 * Maximal time in ticks (ms) the convoy has to wait during loading.
+	 * If it turns negative, the convoy will stop loading and drive on.
+	 */
+	sint32 max_ticks_waiting;
 
 	/**
 	* akkumulierter gewinn über ein jahr hinweg
@@ -362,7 +362,7 @@ private:
 	/* Calculates (and sets) akt_speed
 	 * needed for driving, entering and leaving a depot)
 	 */
-	void calc_acceleration(long delta_t);
+	void calc_acceleration(uint32 delta_t);
 
 	/*
 	* struct holds new financial history for convoi
@@ -605,7 +605,7 @@ public:
 	 * all other stuff => convoi_t::step()
 	 * @author Hj. Malthaner
 	 */
-	bool sync_step(long delta_t);
+	bool sync_step(uint32 delta_t);
 
 	/**
 	 * All things like route search or laoding, that may take a little

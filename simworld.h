@@ -167,10 +167,7 @@ private:
 	 * Maximum size for waiting bars etc.
 	 */
 	int cached_size_max;
-
-	/**
-	 * @}
-	 */
+	/** @} */
 
 	/**
 	 * All cursor interaction goes via this function, it will call save_mouse_funk first with
@@ -209,10 +206,7 @@ private:
 	 * @brief Map mouse cursor tool.
 	 */
 	zeiger_t *zeiger;
-
-	/**
-	 * @}
-	 */
+	/** @} */
 
 	/**
 	 * Time when last mouse moved to check for ambient sound events.
@@ -264,7 +258,7 @@ private:
 	/**
 	 * Recalculates sleep time etc.
 	 */
-	void update_frame_sleep_time(long delta_t);
+	void update_frame_sleep_time();
 
 	/**
 	 * Table for fast conversion from height to climate.
@@ -471,10 +465,7 @@ private:
 	 * @see cached_grid_size
 	 */
 	sint8 *water_hgts;
-
-	/**
-	 * @}
-	 */
+	/** @} */
 
 	/**
 	 * @name Player management
@@ -502,10 +493,7 @@ private:
 	 * Locally stored password hashes, will be used after reconnect to a server.
 	 */
 	pwd_hash_t player_password_hash[MAX_PLAYER_COUNT];
-
-	/**
-	 * @}
-	 */
+	/** @} */
 
 	/*
 	 * Counter for schedules.
@@ -606,10 +594,7 @@ private:
 
 	/// To calculate the fps and the simloops.
 	uint32 idle_time;
-
-	/**
-	 * @}
-	 */
+	/** @} */
 
 	/**
 	 * Current accumulated month number, counting January of year 0 as 0.
@@ -1034,24 +1019,26 @@ public:
 	sint64 scale_with_month_length(sint64 value)
 	{
 		const int left_shift = ticks_per_world_month_shift - 18;
-		if (left_shift >= 0) {
+		if(left_shift >= 0) {
 			return value << left_shift;
-		} else {
+		}
+		else {
 			return value >> (-left_shift);
 		}
 	}
 	/**
 	 * Scales value inverse proportionally with month length.
-	 * Used to scale monthly maintenance costs and factory production.
+	 * Used to scale monthly maintenance costs, city growth, and factory production.
 	 * @returns value << ( 18 - ticks_per_world_month_shift )
 	 */
 	sint64 inverse_scale_with_month_length(sint64 value)
 	{
-		const int left_shift = 18 - ticks_per_world_month_shift;
-		if (left_shift >= 0) {
-			return value << left_shift;
-		} else {
-			return value >> (-left_shift);
+		const int left_shift = (int)ticks_per_world_month_shift-18;
+		if(  left_shift < 0  ) {
+			return value << (-left_shift);
+		}
+		else {
+			return value >> left_shift;
 		}
 	}
 
@@ -1587,15 +1574,15 @@ public:
 
 	bool sync_add(sync_steppable *obj);
 	bool sync_remove(sync_steppable *obj);
-	void sync_step(long delta_t, bool sync, bool display );	// advance also the timer
+	void sync_step(uint32 delta_t, bool sync, bool display );	// advance also the timer
 
 	bool sync_eyecandy_add(sync_steppable *obj);
 	bool sync_eyecandy_remove(sync_steppable *obj);
-	void sync_eyecandy_step(long delta_t);	// all stuff, which does not need explicit order (factory smoke, buildings)
+	void sync_eyecandy_step(uint32 delta_t);	// all stuff, which does not need explicit order (factory smoke, buildings)
 
 	bool sync_way_eyecandy_add(sync_steppable *obj);
 	bool sync_way_eyecandy_remove(sync_steppable *obj);
-	void sync_way_eyecandy_step(long delta_t);	// currently one smoke from vehicles on ways
+	void sync_way_eyecandy_step(uint32 delta_t);	// currently one smoke from vehicles on ways
 
 
 	/**
