@@ -125,6 +125,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4200;4800;4311;4996;4554;4373;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winmm.lib;zlibstat.lib;advapi32.lib;wsock32.lib;libbz2.lib;Strmiids.lib;Ws2_32.lib;pthreadVCE2.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -161,6 +162,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4200;4800;4311;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
@@ -199,6 +201,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4200;4800;4311;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <AdditionalOptions>SDL.lib SDLmain.lib %(AdditionalOptions)</AdditionalOptions>
@@ -232,6 +235,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4200;4800;4311;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <AdditionalOptions>SDL.lib SDLmain.lib %(AdditionalOptions)</AdditionalOptions>
@@ -267,6 +271,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4200;4800;4311;4996;4554;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winmm.lib;zlibstat.lib;advapi32.lib;wsock32.lib;libbz2.lib;Strmiids.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -298,10 +303,10 @@
     <ClCompile Include="display\simview.cc" />
     <ClCompile Include="display\viewport.cc" />
     <ClCompile Include="gui\ai_option_t.cc" />
+    <ClCompile Include="gui\components\gui_component.cc" />
     <ClCompile Include="gui\components\gui_container.cc" />
     <ClCompile Include="gui\components\gui_convoiinfo.cc" />
     <ClCompile Include="gui\components\gui_image.cc" />
-    <ClCompile Include="gui\components\gui_komponente.cc" />
     <ClCompile Include="gui\components\gui_map_preview.cc" />
     <ClCompile Include="gui\components\gui_obj_view_t.cc" />
     <ClCompile Include="gui\convoy_item.cc" />
@@ -315,6 +320,7 @@
     <ClCompile Include="gui\server_frame.cc" />
     <ClCompile Include="gui\simwin.cc" />
     <ClCompile Include="gui\themeselector.cc" />
+    <ClCompile Include="gui\tool_selector.cc" />
     <ClCompile Include="network\checksum.cc" />
     <ClCompile Include="network\memory_rw.cc" />
     <ClCompile Include="network\network.cc" />
@@ -386,6 +392,7 @@
     <ClCompile Include="simsys.cc" />
     <ClCompile Include="simsys_w.cc" />
     <ClCompile Include="simsys_w32_png.cc" />
+    <ClCompile Include="simtool.cc" />
     <ClCompile Include="simunits.cc" />
     <ClCompile Include="squirrel\sqstdlib\sqstdaux.cc" />
     <ClCompile Include="squirrel\sqstdlib\sqstdblob.cc" />
@@ -504,6 +511,7 @@
     <ClCompile Include="gui\money_frame.cc" />
     <ClCompile Include="boden\wege\monorail.cc" />
     <ClCompile Include="boden\monorailboden.cc" />
+    <ClCompile Include="utils\simrandom.cc" />
     <ClCompile Include="vehicle\movingobj.cc" />
     <ClCompile Include="boden\wege\narrowgauge.cc" />
     <ClCompile Include="besch\reader\obj_reader.cc" />
@@ -568,11 +576,9 @@
     <ClCompile Include="utils\simstring.cc" />
     <ClCompile Include="simsys_s.cc" />
     <ClCompile Include="simticker.cc" />
-    <ClCompile Include="simtools.cc" />
-    <ClCompile Include="vehicle\simvehikel.cc" />
-    <ClCompile Include="vehicle\simverkehr.cc" />
+    <ClCompile Include="vehicle\simroadtraffic.cc" />
+    <ClCompile Include="vehicle\simvehicle.cc" />
     <ClCompile Include="simware.cc" />
-    <ClCompile Include="simwerkz.cc" />
     <ClCompile Include="simworld.cc" />
     <ClCompile Include="besch\reader\skin_reader.cc" />
     <ClCompile Include="besch\sound_besch.cc" />
@@ -598,14 +604,12 @@
     <ClCompile Include="music\w32_midi.cc" />
     <ClCompile Include="besch\ware_besch.cc" />
     <ClCompile Include="bauer\warenbauer.cc" />
-    <ClCompile Include="dataobj\warenziel.cc" />
     <ClCompile Include="boden\wasser.cc" />
     <ClCompile Include="besch\reader\way_obj_reader.cc" />
     <ClCompile Include="besch\reader\way_reader.cc" />
     <ClCompile Include="boden\wege\weg.cc" />
     <ClCompile Include="bauer\wegbauer.cc" />
     <ClCompile Include="gui\welt.cc" />
-    <ClCompile Include="gui\werkzeug_waehler.cc" />
     <ClCompile Include="sound\win32_sound.cc" />
     <ClCompile Include="besch\reader\xref_reader.cc" />
   </ItemGroup>
@@ -624,6 +628,7 @@
     <ClInclude Include="display\viewport.h" />
     <ClInclude Include="gui\ai_option_t.h" />
     <ClInclude Include="gui\components\action_listener.h" />
+    <ClInclude Include="gui\components\gui_component.h" />
     <ClInclude Include="gui\components\gui_container.h" />
     <ClInclude Include="gui\components\gui_convoiinfo.h" />
     <ClInclude Include="gui\components\gui_fixedwidth_textarea.h" />
@@ -640,6 +645,7 @@
     <ClInclude Include="gui\server_frame.h" />
     <ClInclude Include="gui\simwin.h" />
     <ClInclude Include="gui\themeselector.h" />
+    <ClInclude Include="gui\tool_selector.h" />
     <ClInclude Include="network\checksum.h" />
     <ClInclude Include="network\memory_rw.h" />
     <ClInclude Include="network\network.h" />
@@ -689,6 +695,7 @@
     <ClInclude Include="siminteraction.h" />
     <ClInclude Include="simloadingscreen.h" />
     <ClInclude Include="simobj.h" />
+    <ClInclude Include="simtool.h" />
     <ClInclude Include="simunits.h" />
     <ClInclude Include="squirrel\sqstdaux.h" />
     <ClInclude Include="squirrel\sqstdblob.h" />
@@ -871,6 +878,7 @@
     <ClInclude Include="gui\money_frame.h" />
     <ClInclude Include="boden\wege\monorail.h" />
     <ClInclude Include="boden\monorailboden.h" />
+    <ClInclude Include="utils\simrandom.h" />
     <ClInclude Include="vehicle\movingobj.h" />
     <ClInclude Include="music\music.h" />
     <ClInclude Include="boden\wege\narrowgauge.h" />
@@ -948,6 +956,8 @@
     <ClInclude Include="simticker.h" />
     <ClInclude Include="simtools.h" />
     <ClInclude Include="simtypes.h" />
+    <ClInclude Include="vehicle\simroadtraffic.h" />
+    <ClInclude Include="vehicle\simvehicle.h" />
     <ClInclude Include="vehicle\simvehikel.h" />
     <ClInclude Include="vehicle\simverkehr.h" />
     <ClInclude Include="simversion.h" />

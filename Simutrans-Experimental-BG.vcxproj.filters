@@ -492,19 +492,7 @@
     <ClCompile Include="simticker.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="simtools.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vehicle\simvehikel.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vehicle\simverkehr.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="simware.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="simwerkz.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="simworld.cc">
@@ -582,9 +570,6 @@
     <ClCompile Include="bauer\warenbauer.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dataobj\warenziel.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="boden\wasser.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -601,9 +586,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="gui\welt.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="gui\werkzeug_waehler.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="sound\win32_sound.cc">
@@ -870,9 +852,6 @@
     <ClCompile Include="gui\components\gui_image.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="gui\components\gui_komponente.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="gui\components\gui_map_preview.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -955,6 +934,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="display\simgraph16.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\components\gui_component.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\tool_selector.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="utils\simrandom.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicle\simroadtraffic.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicle\simvehicle.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="simtool.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -2163,6 +2160,24 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="script\api\api_obj_desc_base.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\components\gui_component.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\tool_selector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utils\simrandom.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicle\simroadtraffic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicle\simvehicle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="simtool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
