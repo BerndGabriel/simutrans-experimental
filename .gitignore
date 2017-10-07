@@ -27,3 +27,5 @@
 *.patch
 *.log
 /doxygen
+/binaries
+/libs
