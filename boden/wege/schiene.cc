@@ -146,8 +146,8 @@ void schiene_t::remove_reservations(const convoihandle_t & convoy)
 
 bool schiene_t::can_reserve(convoihandle_t c) const
 {
-	if (c == reserved)
-		return true;
+	if (reserved.is_bound())
+		return c == reserved;
 
 	if (!reservations.empty())
 	{
@@ -173,8 +173,7 @@ bool schiene_t::can_reserve(convoihandle_t c) const
 				return false;
 		}
 	}
-
-	return !reserved.is_bound();
+	return true;
 }
 
 /**
