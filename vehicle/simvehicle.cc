@@ -3377,7 +3377,7 @@ int air_vehicle_t::get_cost(const grund_t *, const weg_t *w, const sint32, ribi_
 				{
 					case taxiing_to_halt:
 					{
-						reservation_schedule_item_t rsi = estimate_reservation_schedule(get_pos() - w->get_pos(), kmh_to_speed(w->get_max_speed()), 4 /* most common runway length */);
+						reservation_schedule_item_t rsi = estimate_reservation_schedule(get_pos() - w->get_pos(), kmh_to_speed(w->get_max_speed()), 6 /* twice the minimum runway length */);
 						if (sch->can_schedule_reservation(rsi))
 							// there is a time slot for this convoy
 							break;
@@ -3771,7 +3771,7 @@ bool air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, ro
 		//BG, 03-Oct-2017: schedule reservation
 		const koord3d& schedule_pos = route->at(searchforstop);
 		schiene_t* sch = (schiene_t*)(welt->lookup(schedule_pos)->get_weg(air_wt));
-		sch->schedule_reservation(estimate_reservation_schedule(schedule_pos - start, sch->get_max_speed(), 4));
+		sch->schedule_reservation(estimate_reservation_schedule(schedule_pos - start, sch->get_max_speed(), searchforstop - touchdown + 1));
 
 		// now we just append the rest
 		for( int i=end_route.get_count()-2;  i>=0;  i--  ) {
@@ -3826,7 +3826,7 @@ bool air_vehicle_t::block_reserver( uint32 start, uint32 end, bool reserve ) con
 				// Otherwise unscheduled convoys may never land or take off as scheduled convoys are preferred.
 				if (i == searchforstop) 
 					if (!sch1->get_reservation_of(cnv->self))
-						sch1->schedule_reservation(estimate_reservation_schedule(sch1->get_pos() - this->get_pos(), sch1->get_max_speed(), 4));				
+						sch1->schedule_reservation(estimate_reservation_schedule(sch1->get_pos() - this->get_pos(), sch1->get_max_speed(), searchforstop - touchdown + 1));
 
 				if(  !sch1->reserve(cnv->self,ribi_t::none)  ) {
 
