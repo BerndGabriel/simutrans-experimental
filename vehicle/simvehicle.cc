@@ -3321,6 +3321,24 @@ ribi_t::ribi air_vehicle_t::get_ribi(const grund_t *gr) const
 	return ribi_t::none;
 }
 
+//BG, 03-Oct-2017: reservation scheduling avoids air traffic congestion.
+// estimate_reservation_schedule() returns a reservation_schedule_item_t with the estimated reservation timing for the convoi arriving at ziel 
+// while it is distance_to_ziel tiles away from ziel and ziel has a length of length_of_ziel tiles. 
+reservation_schedule_item_t air_vehicle_t::estimate_reservation_schedule(const koord3d & distance_to_ziel, sint32 max_speed_of_ziel, sint32 length_of_ziel) const
+{
+	convoi_t* cnv = get_convoi();
+
+	koord d(distance_to_ziel.x >= 0 ? distance_to_ziel.x : -distance_to_ziel.x, distance_to_ziel.y >= 0 ? distance_to_ziel.y : -distance_to_ziel.y);
+	uint32 diagonal = min(d.x, d.y);
+	uint32 straight = d.x + d.y - (diagonal << 1);
+	uint32 distance = straight + diagonal * get_diagonal_vehicle_steps_per_tile() / VEHICLE_STEPS_PER_TILE;
+	uint32 speed = cnv->get_min_top_speed();
+	uint32 ticks = (1 << YARDS_PER_TILE_SHIFT) / speed;
+	uint32 arrival = welt->get_ticks() + distance * ticks;
+	uint32 duration = length_of_ziel ? length_of_ziel * (1 << YARDS_PER_TILE_SHIFT) / max_speed_of_ziel : 0;
+
+	return reservation_schedule_item_t(cnv->self, arrival, arrival + duration);
+}
 
 // how expensive to go here (for way search)
 // author prissi
@@ -3343,11 +3361,39 @@ int air_vehicle_t::get_cost(const grund_t *, const weg_t *w, const sint32, ribi_
 		// only, if not flying ...
 		assert(w);
 
-		if(w->get_desc()->get_styp()==type_flat) {
-			costs += 3;
-		}
-		else {
-			costs += 2;
+		switch (w->get_desc()->get_styp())
+		{
+			case type_flat:
+				costs += 3;
+				break;
+
+			case type_runway:
+			{
+				costs += 2;
+
+				//BG, 03-Oct-2017: is runway available when convoy presumably will arrive there
+				const schiene_t* sch = static_cast<const schiene_t*>(w);
+				switch (state)
+				{
+					case taxiing_to_halt:
+					{
+						reservation_schedule_item_t rsi = estimate_reservation_schedule(get_pos() - w->get_pos(), kmh_to_speed(w->get_max_speed()), 4 /* most common runway length */);
+						if (sch->can_schedule_reservation(rsi))
+							// there is a time slot for this convoy
+							break;
+						// no break!
+					}
+					case taxiing:
+						// encourage using runway with least schedules reservations:
+						costs += 100 * sch->get_reservations().get_count();
+						break;
+				}
+				break;
+			}
+
+			default:
+				costs += 2;
+				break;
 		}
 	}
 
@@ -3363,7 +3409,10 @@ bool air_vehicle_t::check_next_tile(const grund_t *bd) const
 		case taxiing_to_halt:
 		case looking_for_parking:
 //DBG_MESSAGE("check_next_tile()","at %i,%i",bd->get_pos().x,bd->get_pos().y);
-			return (bd->hat_weg(air_wt)  &&  bd->get_weg(air_wt)->get_max_speed()>0);
+		{
+			const weg_t *w = bd->get_weg(air_wt);
+			return w && w->get_max_speed() > 0;
+		}
 
 		case landing:
 		case departing:
@@ -3385,6 +3434,7 @@ bool air_vehicle_t::is_target(const grund_t *gr,const grund_t *) const
 	if(state!=looking_for_parking  ||  !target_halt.is_bound()) {
 		// search for the end of the runway
 		const weg_t *w=gr->get_weg(air_wt);
+
 		if(w  &&  w->get_desc()->get_styp()==type_runway) {
 			// ok here is a runway
 			ribi_t::ribi ribi= w->get_ribi_unmasked();
@@ -3499,7 +3549,7 @@ bool air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, ro
 	target_halt = halthandle_t();	// no block reserved
 
 	const weg_t *w=welt->lookup(start)->get_weg(air_wt);
-	bool start_in_the_air = (w==NULL);
+	bool start_in_the_air = (w==NULL) || flying_height > 0;
 	bool end_in_air=false;
 
 	searchforstop = takeoff = touchdown = 0x7ffffffful;
@@ -3542,7 +3592,7 @@ bool air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, ro
 	}
 
 	// second: find target runway end
-
+	flight_state old_state = state;
 	state = taxiing_to_halt;	// only used for search
 
 #ifdef USE_DIFFERENT_WIND
@@ -3553,8 +3603,8 @@ bool air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, ro
 	//DBG_MESSAGE("aircraft_t::calc_route()","search runway target near %i,%i,%i in corners %x",ziel.x,ziel.y,ziel.z);
 #endif
 	route_t end_route;
-
 	if(!end_route.find_route( welt, ziel, this, max_speed, ribi_t::all, welt->get_settings().get_max_choose_route_steps() )) {
+
 		// well, probably this is a waypoint
 		if(  grund_t *target = welt->lookup(ziel)  ) {
 			if(  !target->get_weg(air_wt)  ) {
@@ -3581,6 +3631,13 @@ bool air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, ro
 	if(!start_in_the_air) {
 		takeoff = route->get_count()-1;
 		koord start_dir(welt->lookup(search_start)->get_weg_ribi(air_wt));
+
+		//BG, 06-Oct-2017: schedule reservation. As we are interested in the number of reservations only, speed and length of ziel are irrelevant.
+		// We do not use the schedule to control the convoy order as it is better to serve them in order of arrival at the runway!
+		const koord3d& schedule_pos = search_start;
+		schiene_t* sch = (schiene_t*)(welt->lookup(schedule_pos)->get_weg(air_wt));
+		sch->schedule_reservation(estimate_reservation_schedule(schedule_pos - start, 0, 0));
+
 		if(start_dir!=koord(0,0)) {
 			// add the start
 			ribi_t::ribi start_ribi = ribi_t::backward(ribi_type(start_dir));
@@ -3627,12 +3684,14 @@ bool air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, ro
 		// init with current pos (in air ... )
 		route->clear();
 		route->append( start );
-		state = flying;
+		//state = flying;
+		state = old_state;
 		if(flying_height==0) {
 			flying_height = 3*TILE_HEIGHT_STEP;
 		}
 		takeoff = 0;
-		target_height = ((sint16)get_pos().z+3)*TILE_HEIGHT_STEP;
+		if (state != circling || target_height == 0)
+			target_height = ((sint16)get_pos().z+3)*TILE_HEIGHT_STEP;
 	}
 
 //DBG_MESSAGE("aircraft_t::calc_route()","take off ok");
@@ -3709,6 +3768,11 @@ bool air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, ro
 		// now the route reach point (+1, since it will check before entering the tile ...)
 		searchforstop = route->get_count()-1;
 
+		//BG, 03-Oct-2017: schedule reservation
+		const koord3d& schedule_pos = route->at(searchforstop);
+		schiene_t* sch = (schiene_t*)(welt->lookup(schedule_pos)->get_weg(air_wt));
+		sch->schedule_reservation(estimate_reservation_schedule(schedule_pos - start, sch->get_max_speed(), 4));
+
 		// now we just append the rest
 		for( int i=end_route.get_count()-2;  i>=0;  i--  ) {
 			route->append(end_route.at(i));
@@ -3755,7 +3819,17 @@ bool air_vehicle_t::block_reserver( uint32 start, uint32 end, bool reserve ) con
 			// we un-reserve also nonexistent tiles! (may happen during deletion)
 			if(reserve) {
 				start_now = true;
+
+				// BG, 06-Oct-2017: avoid air traffic congestions:
+				// This additional reservation code is needed to (re-)start the reservation scheduling after loading a saved game.
+				// If scheduling data will be saved some day, it will still be needed to start the reservation scheduling of older saved games.
+				// Otherwise unscheduled convoys may never land or take off as scheduled convoys are preferred.
+				if (i == searchforstop) 
+					if (!sch1->get_reservation_of(cnv->self))
+						sch1->schedule_reservation(estimate_reservation_schedule(sch1->get_pos() - this->get_pos(), sch1->get_max_speed(), 4));				
+
 				if(  !sch1->reserve(cnv->self,ribi_t::none)  ) {
+
 					// unsuccessful => must un-reserve all
 					success = false;
 					end = i;

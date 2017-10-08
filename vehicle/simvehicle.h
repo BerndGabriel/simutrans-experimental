@@ -749,6 +749,11 @@ public:
 	// return valid direction
 	virtual ribi_t::ribi get_ribi(const grund_t* ) const;
 
+	//BG, 03-Oct-2017: reservation scheduling avoids air traffic congestion.
+	// estimate_reservation_schedule() returns a reservation_schedule_item_t with the estimated reservation timing for the convoi arriving at ziel 
+	// while it is distance_to_ziel tiles away from ziel and ziel has a length of length_of_ziel tiles.
+	struct reservation_schedule_item_t estimate_reservation_schedule(const koord3d& distance_to_ziel, sint32 max_speed_of_ziel, sint32 length_of_ziel) const;
+
 	// how expensive to go here (for way search)
 	virtual int get_cost(const grund_t *gr, const weg_t *w, const sint32 max_speed, ribi_t::ribi from) const;
 
