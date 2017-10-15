@@ -68,112 +68,9 @@ void schiene_t::info(cbuffer_t & buf) const
 	}
 }
 
-/**
-* True, if there are no reservations of other convoys scheduled for the given period.
-* @author B.Gabriel
-*/
-bool schiene_t::can_schedule_reservation(const reservation_schedule_item_t& item) const
-{
-	for (reservation_schedule_t::const_iterator i = reservations.begin(); i != reservations.end(); ++i)
-	{
-		if (item.convoy == i->convoy || !i->convoy.is_bound())
-			// ignore my own and stale reservations
-			continue;
-
-		if (item.departure <= i->arrival)
-		{
-			// can insert before this reservation
-			return true;
-		}
-		if (item.arrival < i->departure)
-		{
-			// intersects this reservation
-			return false;
-		}
-	}
-	return true;
-}
-
-/**
-* Schedule reservation no matter if there are concurrent reservations.
-* All other reservations of the convoy for this way are removed before the new reservation is inserted.
-* @author B.Gabriel
-*/
-void schiene_t::schedule_reservation(const reservation_schedule_item_t & item)
-{
-	remove_reservations(item.convoy);
-	for (reservation_schedule_t::iterator i = reservations.begin(); i != reservations.end(); ++i)
-	{
-		if (item < *i)
-		{
-			// insert before this item
-			i = reservations.insert(i, item);
-			return;
-		}
-	}
-	reservations.append(item);
-}
-
-/**
-* Get reservation of given convoy.
-* @author B.Gabriel
-*/
-const reservation_schedule_item_t * schiene_t::get_reservation_of(const convoihandle_t & convoy)
-{
-	if (!reservations.empty())
-		for (reservation_schedule_t::iterator i = reservations.begin(); i != reservations.end(); ++i)
-			if (i->convoy == convoy)
-				return &*i;
-	return NULL;
-}
-
-/**
-* Remove all reservations of given convoy.
-* @author B.Gabriel
-*/
-void schiene_t::remove_reservations(const convoihandle_t & convoy)
-{
-	if (!reservations.empty())
-		for (reservation_schedule_t::iterator i = reservations.begin(); i != reservations.end(); )
-		{
-			if (i->convoy == convoy || !i->convoy.is_bound())
-				// remove previous or stale reservation
-				i = reservations.erase(i);
-			else
-				++i;
-		}
-}
-
 bool schiene_t::can_reserve(convoihandle_t c) const
 {
-	if (reserved.is_bound())
-		return c == reserved;
-
-	if (!reservations.empty())
-	{
-		// c can reserve only, if c is late or is scheduled for now or no other convoy is scheduled for now.
-
-		uint32 now = welt->get_ticks();
-		for (reservation_schedule_t::const_iterator i = reservations.begin(); i != reservations.end(); ++i)
-		{
-			if (!i->convoy.is_bound())
-				// ignore reservations of stale convoys
-				continue;
-
-			if (i->convoy == c)
-				// c's reservation. c may reserve, if free.
-				break;
-
-			if (now < i->arrival)
-				// first entry in the future. c may reserve, if free.
-				break;
-
-			if (now < i->departure)
-				// another convoy's reservation at now. c must not reserve.
-				return false;
-		}
-	}
-	return true;
+	return !reserved.is_bound() || c == reserved;
 }
 
 /**
@@ -184,9 +81,6 @@ bool schiene_t::reserve(convoihandle_t c, ribi_t::ribi dir  )
 {
 	if(can_reserve(c)) {
 		reserved = c;
-
-		// remove from schedule
-		remove_reservations(c);
 
 		/* for threeway and fourway switches we may need to alter graphic, if
 		 * direction is a diagonal (i.e. on the switching part)
@@ -216,7 +110,6 @@ bool schiene_t::reserve(convoihandle_t c, ribi_t::ribi dir  )
 bool schiene_t::unreserve(convoihandle_t c)
 {
 	// is this tile reserved by us?
-	remove_reservations(c);
 	if(reserved.is_bound()  &&  reserved==c) {
 		reserved = convoihandle_t();
 		if(schiene_t::show_reservations) {

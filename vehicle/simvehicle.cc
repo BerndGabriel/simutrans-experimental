@@ -3372,7 +3372,7 @@ int air_vehicle_t::get_cost(const grund_t *, const weg_t *w, const sint32, ribi_
 				costs += 2;
 
 				//BG, 03-Oct-2017: is runway available when convoy presumably will arrive there
-				const schiene_t* sch = static_cast<const schiene_t*>(w);
+				const runway_t* sch = static_cast<const runway_t*>(w);
 				switch (state)
 				{
 					case taxiing_to_halt:
@@ -3635,7 +3635,7 @@ bool air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, ro
 		//BG, 06-Oct-2017: schedule reservation. As we are interested in the number of reservations only, speed and length of ziel are irrelevant.
 		// We do not use the schedule to control the convoy order as it is better to serve them in order of arrival at the runway!
 		const koord3d& schedule_pos = search_start;
-		schiene_t* sch = (schiene_t*)(welt->lookup(schedule_pos)->get_weg(air_wt));
+		runway_t* sch = (runway_t*)(welt->lookup(schedule_pos)->get_weg(air_wt));
 		sch->schedule_reservation(estimate_reservation_schedule(schedule_pos - start, 0, 0));
 
 		if(start_dir!=koord(0,0)) {
@@ -3770,7 +3770,7 @@ bool air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, ro
 
 		//BG, 03-Oct-2017: schedule reservation
 		const koord3d& schedule_pos = route->at(searchforstop);
-		schiene_t* sch = (schiene_t*)(welt->lookup(schedule_pos)->get_weg(air_wt));
+		runway_t* sch = (runway_t*)(welt->lookup(schedule_pos)->get_weg(air_wt));
 		sch->schedule_reservation(estimate_reservation_schedule(schedule_pos - start, sch->get_max_speed(), searchforstop - touchdown + 1));
 
 		// now we just append the rest
