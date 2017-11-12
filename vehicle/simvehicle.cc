@@ -3917,6 +3917,16 @@ bool air_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, uin
 			runway_t *rw = (runway_t *)gr->get_weg(air_wt);
 			// next tile a not runway => then unreserve
 			if(  rw == NULL  ||  rw->get_desc()->get_styp() != type_runway  ||  gr->is_halt()  ) {
+
+				//// check, if tile occupied by a plane on ground
+				//for (uint8 i = 1; i<gr->get_top(); i++) {
+				//	obj_t *obj = gr->obj_bei(i);
+				//	if (obj->get_typ() == obj_t::air_vehicle && ((air_vehicle_t *)obj)->is_on_ground()) {
+				//		restart_speed = 0;
+				//		return false;
+				//	}
+				//}
+
 				block_reserver( touchdown, searchforstop+1, false );
 			}
 		}
