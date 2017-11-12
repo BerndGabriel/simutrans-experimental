@@ -1547,7 +1547,7 @@ public:
 	class sync_list_t {
 			friend class karte_t;
 		public:
-			sync_list_t() : currently_deleting(NULL), sync_step_running(false) {}
+			sync_list_t() : currently_deleting(NULL), sync_step_running(false), round_robin(0) {}
 			void add(sync_steppable *obj);
 			void remove(sync_steppable *obj);
 		private:
@@ -1558,6 +1558,7 @@ public:
 			vector_tpl<sync_steppable *> list;  ///< list of sync-steppable objects
 			sync_steppable* currently_deleting; ///< deleted durign sync_step, safeguard calls to remove
 			bool sync_step_running;
+			uint32 round_robin; 
 	};
 
 	sync_list_t sync;              ///< vehicles, transformers, traffic lights

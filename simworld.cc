@@ -3456,6 +3456,7 @@ void karte_t::sync_list_t::clear()
 	list.clear();
 	currently_deleting = NULL;
 	sync_step_running = false;
+	round_robin = 0;
 }
 
 void karte_t::sync_list_t::sync_step(uint32 delta_t)
@@ -3463,8 +3464,9 @@ void karte_t::sync_list_t::sync_step(uint32 delta_t)
 	sync_step_running = true;
 	currently_deleting = NULL;
 
-	for(uint32 i=0; i<list.get_count();i++) {
-		sync_steppable *ss = list[i];
+	for(uint32 i = 0; i < list.get_count(); ++i) {
+		uint32 j = (i + round_robin) % list.get_count();
+		sync_steppable *ss = list[j];
 		switch(ss->sync_step(delta_t)) {
 			case SYNC_OK:
 				break;
@@ -3475,11 +3477,13 @@ void karte_t::sync_list_t::sync_step(uint32 delta_t)
 				/* fall-through */
 			case SYNC_REMOVE:
 				ss = list.pop_back();
-				if (i < list.get_count()) {
-					list[i] = ss;
+				if (j < list.get_count()) {
+					list[j] = ss;
 				}
 		}
 	}
+	if (list.get_count())
+		round_robin = (round_robin + 1) % list.get_count();
 	sync_step_running = false;
 }
 
